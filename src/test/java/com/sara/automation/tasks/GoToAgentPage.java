@@ -10,8 +10,6 @@ import net.serenitybdd.screenplay.waits.WaitUntil;
 import net.thucydides.core.annotations.Step;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.OutputType;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import net.serenitybdd.screenplay.abilities.BrowseTheWeb;
 import java.time.Duration;

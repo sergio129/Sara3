@@ -8,7 +8,6 @@ import com.sara.automation.tasks.OpenCasesPage;
 import com.sara.automation.tasks.TransicionarEstadosCaso;
 import com.sara.automation.tasks.ValidarEstadoCaso;
 import com.sara.automation.utils.CredentialsReader;
-import com.sara.automation.utils.ApplicationPerformanceMonitor;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
@@ -33,80 +32,38 @@ public class CasesStepDefinitions {
     WebDriver browser;
 
     private Actor actor;
-    private ApplicationPerformanceMonitor perfMonitor;
 
     @Before
     public void prepararEscenario() {
         OnStage.setTheStage(new OnlineCast());
         actor = OnStage.theActorCalled("Sara");
-        // Inicializar monitor de performance para capturar métricas reales de la app
-        perfMonitor = new ApplicationPerformanceMonitor("CasesTest_" + System.currentTimeMillis(), null);
-        // Guardar el monitor en ActorMemory para que las Tasks puedan acceder a él
-        actor.remember("perfMonitor", perfMonitor);
     }
 
     @After
     public void finalizarEscenario() {
-        // Capturar Web Vitals antes de cerrar navegador
-        if (perfMonitor != null && browser != null) {
-            try {
-                perfMonitor.setDriver(browser);
-                perfMonitor.captureWebVitals("Final_Page");
-                perfMonitor.generateReport();
-                System.out.println(perfMonitor.getSummary());
-            } catch (Exception e) {
-                System.out.println("Warning: No se pudo generar reporte final - " + e.getMessage());
-            }
-        }
+        // Limpieza de escenario
     }
 
     @Given("el actor tiene un navegador disponible")
     public void elActorTieneUnNavegadorDisponible() {
         actor.can(BrowseTheWeb.with(browser));
-        // Asignar driver al monitor
-        if (perfMonitor != null) {
-            perfMonitor.setDriver(browser);
-        }
     }
 
     @When("abre la pagina de casos")
     public void abreLaPaginaDeCasos() {
-        long startTime = System.currentTimeMillis();
         actor.attemptsTo(OpenCasesPage.now());
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureWebVitals("OpenCasesPage");
-            perfMonitor.captureNetworkTiming("OpenCasesPage");
-        }
-        System.out.println("[APP-PERF] OpenCasesPage completado en " + duration + "ms");
     }
 
     @When("realiza login con credenciales")
     public void realizaLoginConCredenciales() {
-        long startTime = System.currentTimeMillis();
         String user = CredentialsReader.getUsuario();
         String pass = CredentialsReader.getContrasena();
         actor.attemptsTo(LoginWithCognito.with(user, pass));
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureAPIResponseTime("POST /login", duration);
-            perfMonitor.captureNetworkTiming("LoginStep");
-        }
-        System.out.println("[APP-PERF] Login completado en " + duration + "ms");
     }
 
     @When("navega a agent")
     public void navegaAAgent() {
-        long startTime = System.currentTimeMillis();
         actor.attemptsTo(GoToAgentPage.now());
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureNetworkTiming("GoToAgent");
-        }
-        System.out.println("[APP-PERF] Navigate to Agent completado en " + duration + "ms");
     }
 
     @Then("deberia estar en la ruta cases")
@@ -150,22 +107,14 @@ public class CasesStepDefinitions {
 
     @When("diligencia caso express completo desde feature")
     public void diligenciaCasoExpressCompletoDesdeFeature(DataTable dataTable) {
-        long startTime = System.currentTimeMillis();
         // Este step funciona como alias legible del feature.
         // Reutiliza el mismo flujo para no duplicar lógica de negocio en los steps.
         completaListasManualesDesdeFeature(dataTable);
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureNetworkTiming("DiligenciaCasoExpress");
-        }
-        System.out.println("[APP-PERF] Caso Express completado en " + duration + "ms");
     }
 
     @When("diligenciamos el proveedor")
     @When("digilenciamos el poriveedor")
     public void diligenciamosElProveedor(DataTable dataTable) {
-        long startTime = System.currentTimeMillis();
         List<Map<String, String>> rows = dataTable.asMaps(String.class, String.class);
         Map<String, String> row = rows.get(0);
 
@@ -173,13 +122,6 @@ public class CasesStepDefinitions {
         String servicio = requiredAnyKey(row, "Servicio", "servicio", "Respuesta", "respuesta de proveedor");
 
         actor.attemptsTo(DiligenciarProveedorGestion.conDatos(nombreProveedor, servicio));
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureFormSubmissionTime("GestionProveedor", duration);
-            perfMonitor.captureNetworkTiming("GestionProveedor");
-        }
-        System.out.println("[APP-PERF] Gestión Proveedor completada en " + duration + "ms");
     }
 
     private String required(Map<String, String> row, String key) {
@@ -206,27 +148,13 @@ public class CasesStepDefinitions {
 
     @When("transicionamos los estados del caso")
     public void transicionamosLosEstadosDelCaso() {
-        long startTime = System.currentTimeMillis();
         // Transiciona el caso a través de: Programado -> Aceptado y en desplazamiento -> Concluido -> Finalizado
         actor.attemptsTo(TransicionarEstadosCaso.completarSecuencia());
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureNetworkTiming("TransicionesEstados");
-        }
-        System.out.println("[APP-PERF] Transiciones de estados completadas en " + duration + "ms");
     }
 
     @Then("Se valida que quede en estado {string}")
     public void seValidaQueQuedeEnEstado(String estado) {
-        long startTime = System.currentTimeMillis();
         // Valida que el caso haya finalizado en el estado esperado
         actor.attemptsTo(ValidarEstadoCaso.conEstado(estado));
-        long duration = System.currentTimeMillis() - startTime;
-        
-        if (perfMonitor != null) {
-            perfMonitor.captureNetworkTiming("ValidarEstado");
-        }
-        System.out.println("[APP-PERF] Validación de estado completada en " + duration + "ms");
     }
 }

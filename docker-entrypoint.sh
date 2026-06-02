@@ -5,6 +5,7 @@ set -e
 export DISPLAY=:99
 export XAUTHORITY=/tmp/.Xauthority
 export QT_QPA_PLATFORM=offscreen
+export TERM=xterm
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║  🖥️  INICIANDO XVFB PARA DOCKER CONTAINER            ║"

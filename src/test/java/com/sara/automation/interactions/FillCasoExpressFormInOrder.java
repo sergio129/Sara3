@@ -18,8 +18,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import net.serenitybdd.screenplay.waits.WaitUntil;
 
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -38,6 +36,25 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
     private static final Random RANDOM = new Random();
     private static final String UBICACION_SERVICIO_DEFAULT = "produccion";
+    private static final String[] NOMBRES = {
+            "Andrés", "Camila", "Sofía", "Daniel", "Valentina", "Juan", "María", "Carlos",
+            "Laura", "Javier", "Ana", "Sebastián", "Paula", "Alejandro", "Sara", "David",
+            "Natalia", "Miguel", "Daniela", "Fernando"
+    };
+    private static final String[] APELLIDOS = {
+            "García", "Rodríguez", "Martínez", "López", "González", "Pérez", "Sánchez", "Ramírez",
+            "Torres", "Flores", "Rivera", "Vargas", "Castillo", "Ríos", "Mejía", "Hernández",
+            "Vega", "Molina", "Ortiz", "Cruz"
+    };
+    private static final String[] BARRIOS = {
+            "San Fernando", "La Floresta", "Ciudad Salitre", "Chapinero", "La Castellana",
+            "Belén", "La Soledad", "Normandía", "El Prado", "El Poblado", "Granada",
+            "Los Ángeles", "El Campestre", "Bosque Popular", "Santa María", "Normandía"
+    };
+    private static final String[] MARCAS_VEHICULO = {
+            "Renault", "Chevrolet", "Mazda", "Nissan", "Toyota", "Kia", "Hyundai",
+            "Volkswagen", "Ford", "Suzuki", "Mitsubishi", "Peugeot", "Fiat", "Honda"
+    };
 
     private final String departamento;
     private final String municipio;
@@ -105,11 +122,11 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
     private <T extends Actor> void llenarDatosBasicosEnOrden(T actor) throws Exception {
         String numeroExpediente = generarNumeroExpediente15();
-        String nombreSolicitante = "Solicitante " + randomLetras(6);
+        String nombreSolicitante = generarNombreSolicitanteReal();
         String cedulaSolicitante = randomDigitos(10);
         String telefono1 = "3" + randomDigitos(9);
         String telefono2 = "3" + randomDigitos(9);
-        String placa = randomLetras(3) + randomDigitos(3);
+        String placa = generarPlacaColombiana();
 
         WebDriver driver = net.serenitybdd.screenplay.abilities.BrowseTheWeb.as(actor).getDriver();
         
@@ -124,7 +141,6 @@ public class FillCasoExpressFormInOrder implements Interaction {
                 .until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("input[name='data[numero_expediente]']")));
         System.out.println("  Campos del formulario visibles OK");
         
-        // TODO con raw WebDriver - mantener contexto del iframe sin llamar a Screenplay
         
         // 1) Numero expediente - pegar desde clipboard
         WebElement expedienteField = driver.findElement(By.cssSelector("input[name='data[numero_expediente]']"));
@@ -600,34 +616,16 @@ public class FillCasoExpressFormInOrder implements Interaction {
         throw new RuntimeException("Error seleccionando elemento: " + valor + " después de 4 intentos");
     }
 
-    private boolean clickOption(WebDriver driver, By listItemExact, String valor) {
-        List<WebElement> items = driver.findElements(listItemExact);
-        for (WebElement item : items) {
-            try {
-                if (item.isDisplayed()) {
-                    try {
-                        item.click();
-                        return true;
-                    } catch (org.openqa.selenium.ElementClickInterceptedException intercepted) {
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", item);
-                        return true;
-                    }
-                }
-            } catch (org.openqa.selenium.StaleElementReferenceException stale) {
-                // Reintentar con la siguiente referencia
-            }
-        }
-        return false;
-    }
+   
 
     private <T extends Actor> void llenarDireccionesYUbicacionEnOrden(T actor) {
         ensureIframeContext(actor);
 
-        String direccionServicio = "Calle " + (10 + RANDOM.nextInt(80)) + " #" + (1 + RANDOM.nextInt(99)) + "-" + (1 + RANDOM.nextInt(99));
-        String direccionDestino = "Carrera " + (10 + RANDOM.nextInt(80)) + " #" + (1 + RANDOM.nextInt(99)) + "-" + (1 + RANDOM.nextInt(99));
-        String detalleDireccionServicio = "Apto " + (1 + RANDOM.nextInt(50)) + ", Torre " + (char) ('A' + RANDOM.nextInt(6));
-        String detalleDireccionDestino = "Referencia " + randomLetras(5) + " " + randomDigitos(3);
-        String marcaVehiculo = "Marca " + randomLetras(4).toUpperCase();
+        String direccionServicio = generarDireccionColombiana(true);
+        String direccionDestino = generarDireccionColombiana(false);
+        String detalleDireccionServicio = "Barrio " + BARRIOS[RANDOM.nextInt(BARRIOS.length)] + ", Torre " + (char) ('A' + RANDOM.nextInt(6));
+        String detalleDireccionDestino = "Barrio " + BARRIOS[RANDOM.nextInt(BARRIOS.length)] + ", Apt. " + (1 + RANDOM.nextInt(90));
+        String marcaVehiculo = MARCAS_VEHICULO[RANDOM.nextInt(MARCAS_VEHICULO.length)];
 
         // Bloque de direcciones respetando la vista del formulario.
         llenarCampo(actor, CasoCreatePage.Direccion_Servicio, direccionServicio);
@@ -750,6 +748,30 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
     private String generarNumeroExpediente15() {
         return randomDigitos(15);
+    }
+
+    private String generarPlacaColombiana() {
+        return randomLetras(3) + randomDigitos(3);
+    }
+
+    private String generarDireccionColombiana(boolean esCalle) {
+        int numero1 = 10 + RANDOM.nextInt(90);
+        int numero2 = 1 + RANDOM.nextInt(99);
+        int numero3 = 1 + RANDOM.nextInt(99);
+        String tipo;
+        if (esCalle) {
+            tipo = RANDOM.nextBoolean() ? "Calle" : "Avenida Calle";
+        } else {
+            tipo = RANDOM.nextBoolean() ? "Carrera" : "Avenida Carrera";
+        }
+        return tipo + " " + numero1 + " # " + numero2 + "-" + numero3;
+    }
+
+    private String generarNombreSolicitanteReal() {
+        String nombre = NOMBRES[RANDOM.nextInt(NOMBRES.length)];
+        String apellido1 = APELLIDOS[RANDOM.nextInt(APELLIDOS.length)];
+        String apellido2 = APELLIDOS[RANDOM.nextInt(APELLIDOS.length)];
+        return nombre + " " + apellido1 + " " + apellido2;
     }
 
     private String randomDigitos(int longitud) {

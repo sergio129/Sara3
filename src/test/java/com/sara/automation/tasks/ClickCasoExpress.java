@@ -3,12 +3,10 @@ package com.sara.automation.tasks;
 import com.sara.automation.interactions.FillCasoExpressFormInOrder;
 import com.sara.automation.interactions.SwitchToOneScriptIframe;
 import com.sara.automation.ui.CasoCreatePage;
-import com.sara.automation.utils.ApplicationPerformanceMonitor;
 import net.serenitybdd.screenplay.Actor;
 import net.serenitybdd.screenplay.Performable;
 import net.serenitybdd.screenplay.Task;
 import net.serenitybdd.screenplay.actions.Click;
-import net.serenitybdd.screenplay.targets.Target;
 import net.serenitybdd.screenplay.waits.WaitUntil;
 import net.thucydides.core.annotations.Step;
 import org.openqa.selenium.By;
@@ -19,7 +17,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
-import java.util.List;
+
 
 import static net.serenitybdd.screenplay.Tasks.instrumented;
 import static net.serenitybdd.screenplay.abilities.BrowseTheWeb.as;
@@ -68,33 +66,22 @@ public class ClickCasoExpress implements Task {
     @Override
     @Step("Abrir Caso Express, seleccionar asistencia, entrar al iframe, habilitar y diligenciar en orden")
     public <T extends Actor> void performAs(T actor) {
-        long taskStartTime = System.currentTimeMillis();
-        ApplicationPerformanceMonitor perfMonitor = null;
-        
-        try {
-            perfMonitor = actor.recall("perfMonitor");
-        } catch (Exception e) {
-            System.out.println("  [ClickCasoExpress] Advertencia: No se pudo recuperar perfMonitor");
-        }
-        
+                        
         // 1) Asegura que arrancamos fuera de cualquier iframe previo.
         salirDeIframe(actor);
 
         // 2) Abre el menú y selecciona el formulario correcto antes de entrar al iframe.
         abrirCasoExpress(actor);
-        if (perfMonitor != null) perfMonitor.captureNetworkTiming("AbrirCasoExpress");
-        
+                
         seleccionarFormularioAsistencia(actor);
-        if (perfMonitor != null) perfMonitor.captureNetworkTiming("SeleccionarAsistencia");
-
+        
         // 3) Desde aquí, el flujo se mantiene dentro del iframe OneScript.
         // Si el actor no entra al iframe, ninguno de los campos del formulario será visible para Screenplay.
         actor.attemptsTo(SwitchToOneScriptIframe.required());
 
         // 4) Habilita la edición del formulario ya estando dentro del iframe.
         habilitarFormulario(actor);
-        if (perfMonitor != null) perfMonitor.captureNetworkTiming("HabilitarFormulario");
-
+        
         // 5) Delega el diligenciamiento campo a campo a la interacción especializada.
         if (tieneListasManuales()) {
             actor.attemptsTo(FillCasoExpressFormInOrder.withManualLists(
@@ -108,14 +95,6 @@ public class ClickCasoExpress implements Task {
         } else {
             actor.attemptsTo(FillCasoExpressFormInOrder.randomData());
         }
-        
-        if (perfMonitor != null) {
-            long totalTime = System.currentTimeMillis() - taskStartTime;
-            perfMonitor.captureFormSubmissionTime("CrearCasoExpress", totalTime);
-            perfMonitor.captureNetworkTiming("GuardarCasoExpress");
-        }
-        System.out.println("  [APP-PERF] ClickCasoExpress completado en " + 
-                         (System.currentTimeMillis() - taskStartTime) + "ms");
     }
 
     private boolean tieneListasManuales() {

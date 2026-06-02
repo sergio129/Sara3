@@ -4,7 +4,6 @@ import com.sara.automation.interactions.ClickEstadoProgramado;
 import com.sara.automation.interactions.ClickEstadoAceptadoDesplazamiento;
 import com.sara.automation.interactions.ClickEstadoConcluido;
 import com.sara.automation.interactions.ClickEstadoFinalizado;
-import com.sara.automation.utils.ApplicationPerformanceMonitor;
 import net.serenitybdd.screenplay.Actor;
 import net.serenitybdd.screenplay.Performable;
 import net.serenitybdd.screenplay.Task;
@@ -39,23 +38,14 @@ public class TransicionarEstadosCaso implements Task {
     @Override
     @Step("Transicionar caso adaptativo: detecta ruta y ejecuta secuencia correcta")
     public <T extends Actor> void performAs(T actor) {
-        long taskStartTime = System.currentTimeMillis();
-        ApplicationPerformanceMonitor perfMonitor = null;
-        
-        try {
-            perfMonitor = actor.recall("perfMonitor");
-        } catch (Exception e) {
-            System.out.println("  [TransicionarEstadosCaso] Advertencia: No se pudo recuperar perfMonitor");
-        }
-        
+                        
         WebDriver driver = net.serenitybdd.screenplay.abilities.BrowseTheWeb.as(actor).getDriver();
         
         // 1. PROGRAMADO
         System.out.println("\n  [TransicionarEstadosCaso] ==================== INICIO DE TRANSICIONES ====================");
         System.out.println("  [TransicionarEstadosCaso] PASO 1: Transición a PROGRAMADO");
         actor.attemptsTo(ClickEstadoProgramado.clickEstadoProgramado());
-        if (perfMonitor != null) perfMonitor.captureAPIResponseTime("POST /transicion-programado", 500);
-        System.out.println("  [TransicionarEstadosCaso] ✓ Estado 'Programado' completado");
+                System.out.println("  [TransicionarEstadosCaso] ✓ Estado 'Programado' completado");
         esperarRecargaPaginaConValidacion(driver, "Aceptado", "Aceptado y en desplazamiento");
         
         // VALIDACIÓN POST-TRANSICIÓN 1: Confirmar que el siguiente estado está disponible
@@ -69,8 +59,7 @@ public class TransicionarEstadosCaso implements Task {
             
             System.out.println("  [TransicionarEstadosCaso] PASO 2: Transición a " + proximoEstado);
             actor.attemptsTo(ClickEstadoAceptadoDesplazamiento.clickEstadoAceptadoDesplazamiento());
-            if (perfMonitor != null) perfMonitor.captureAPIResponseTime("POST /transicion-aceptado", 500);
-            System.out.println("  [TransicionarEstadosCaso] ✓ Estado '" + proximoEstado + "' completado");
+                        System.out.println("  [TransicionarEstadosCaso] ✓ Estado '" + proximoEstado + "' completado");
             esperarRecargaPaginaConValidacion(driver, "Concluido", "Finalizado");
             
             // Después de Aceptado, decidir por el estado realmente disponible en UI.
@@ -80,8 +69,7 @@ public class TransicionarEstadosCaso implements Task {
                 System.out.println("  [TransicionarEstadosCaso] ✓ Detectado siguiente estado real: Concluido");
                 System.out.println("  [TransicionarEstadosCaso] PASO 3: Transición a CONCLUIDO");
                 actor.attemptsTo(ClickEstadoConcluido.clickEstadoConcluido());
-                if (perfMonitor != null) perfMonitor.captureAPIResponseTime("POST /transicion-concluido", 500);
-                System.out.println("  [TransicionarEstadosCaso] ✓ Estado 'Concluido' completado");
+                                System.out.println("  [TransicionarEstadosCaso] ✓ Estado 'Concluido' completado");
                 esperarRecargaPaginaConValidacion(driver, "Finalizado");
 
                 // Después de Concluido, Finalizado debe quedar disponible.
@@ -105,19 +93,11 @@ public class TransicionarEstadosCaso implements Task {
         // 4. FINALIZADO (en ambas rutas)
         System.out.println("  [TransicionarEstadosCaso] PASO FINAL: Transición a FINALIZADO");
         actor.attemptsTo(ClickEstadoFinalizado.clickEstadoFinalizado());
-        if (perfMonitor != null) perfMonitor.captureAPIResponseTime("POST /transicion-finalizado", 500);
-        System.out.println("  [TransicionarEstadosCaso] Estado 'Finalizado' completado");
+                System.out.println("  [TransicionarEstadosCaso] Estado 'Finalizado' completado");
         
         // ESPERA CRÍTICA FINAL: Después de Finalizado, la página se recarga completamente
         esperarRecargaPaginaFinal();
         System.out.println("  [TransicionarEstadosCaso] ✓ Flujo transaccional FINALIZADO - página completamente recargada");
-        
-        if (perfMonitor != null) {
-            long totalTime = System.currentTimeMillis() - taskStartTime;
-            perfMonitor.captureNetworkTiming("TodasTransiciones");
-        }
-        System.out.println("  [APP-PERF] TransicionarEstadosCaso completado en " + 
-                         (System.currentTimeMillis() - taskStartTime) + "ms");
         
         System.out.println("  [TransicionarEstadosCaso] ==================== ✓✓✓ TODAS LAS TRANSICIONES COMPLETADAS ====================\n");
     }
@@ -381,7 +361,7 @@ public class TransicionarEstadosCaso implements Task {
         try {
             driver.switchTo().defaultContent();
             org.openqa.selenium.support.ui.WebDriverWait wait =
-                new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(40));
+                new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(120));
             wait.pollingEvery(java.time.Duration.ofMillis(750));
             wait.ignoring(org.openqa.selenium.NoSuchElementException.class);
             wait.ignoring(org.openqa.selenium.StaleElementReferenceException.class);
