@@ -1,0 +1,4 @@
+# Los scripts de carga AWS se ejecutan en Linux/EC2 (cloud-init y host).
+# Forzar LF en checkout para que CRLF no rompa el user-data ni los .sh,
+# independientemente de core.autocrlf.
+aws/** text eol=lf
