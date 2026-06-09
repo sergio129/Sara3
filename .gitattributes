@@ -2,3 +2,4 @@
 # Forzar LF en checkout para que CRLF no rompa el user-data ni los .sh,
 # independientemente de core.autocrlf.
 aws/** text eol=lf
+infra/**/*.sh text eol=lf
