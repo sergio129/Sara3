@@ -14,12 +14,8 @@ export class Sara3LoadTestStack extends Stack {
     const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
     const subnet = vpc.publicSubnets[0];
 
-    // Security group: solo egress (las instancias solo hacen salida)
-    const sg = new ec2.SecurityGroup(this, 'LoadTestSg', {
-      vpc,
-      description: 'SARA3 load test - solo egress',
-      allowAllOutbound: true,
-    });
+    // Security group existente (provisto): las instancias lo reutilizan.
+    const sg = ec2.SecurityGroup.fromSecurityGroupId(this, 'LoadTestSg', 'sg-0658467e965f57371');
 
     // Imagen Docker -> ECR (assets de CDK). Contexto = raiz del repo.
     const image = new ecrAssets.DockerImageAsset(this, 'Sara3Image', {
