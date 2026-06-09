@@ -9,7 +9,8 @@ FROM eclipse-temurin:11-jdk-jammy AS jdk-source
 FROM eclipse-temurin:11-jdk-jammy AS builder
 WORKDIR /app
 COPY . .
-RUN chmod +x gradlew run-tests-linux.sh && \
+RUN find . -type f \( -name "*.sh" -o -name "gradlew" \) -exec sed -i 's/\r$//' {} + && \
+    chmod +x gradlew run-tests-linux.sh && \
     ./gradlew --version && ./gradlew dependencies --write-locks 2>&1 || true
 
 # ============================================================
@@ -30,7 +31,8 @@ COPY --from=builder /app /app
 # Copiar scripts de entrada y menú
 COPY docker-entrypoint.sh /usr/local/bin/
 COPY docker-menu.sh /app/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
     chmod +x gradlew run-tests-linux.sh && \
     mkdir -p logs target/reports
 
