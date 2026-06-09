@@ -21,8 +21,8 @@ npx cdk deploy --outputs-file cdk-outputs.json
 ./gen-config-env.sh cdk-outputs.json       # escribe ../aws/config.env
 
 cd ..
-./aws/launch-load-test.sh --instances 2 --runners 2 --dry-run   # ensayo
-./aws/launch-load-test.sh --instances 10 --runners 10           # carga objetivo
+./aws/launch-load-test.sh `--instances 2 --runners 2 --on-demand  --dry-run`   # ensayo
+./aws/launch-load-test.sh --instances 10 --runners 10 --on-demand           # carga objetivo
 ./aws/launch-load-test.sh --download <RUN_ID>                   # resultados
 
 cd infra && npx cdk destroy                # desmontar infra

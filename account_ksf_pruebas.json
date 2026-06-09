@@ -1,0 +1,11 @@
+{
+    "UserId": "AROA2MTT74YRKPYLRXLWG:customer-roberto.garcia",
+    "Account": "714281575970",
+    "Arn": "arn:aws:sts::714281575970:assumed-role/Rackspace/customer-roberto.garcia"
+}
+
+
+docker tag sara3:latest 714281575970.dkr.ecr.us-east-1.amazonaws.com/sara3:latest
+docker push 714281575970.dkr.ecr.us-east-1.amazonaws.com/sara3:latest
+
+aws s3 mb s3:sara3 --region us-east-1

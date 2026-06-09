@@ -10,9 +10,8 @@ export class Sara3LoadTestStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // VPC default + primera subred pública
-    const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
-    const subnet = vpc.publicSubnets[0];
+    // Subred especifica (en vpc-0693b2b9993c5c4fe)
+    const subnet = ec2.Subnet.fromSubnetId(this, 'LoadTestSubnet', 'subnet-0ec3b6eb89f3ae0e2');
 
     // Security group existente (provisto): las instancias lo reutilizan.
     const sg = ec2.SecurityGroup.fromSecurityGroupId(this, 'LoadTestSg', 'sg-0658467e965f57371');

@@ -29,10 +29,10 @@ resumen.
 
 ```bash
 # Ver qué se lanzaría, sin tocar AWS:
-./aws/launch-load-test.sh --instances 2 --runners 2 --dry-run
+./aws/launch-load-test.sh --instances 2 --runners 2 --on-demand --dry-run
 
 # Corrida reducida real (4 sesiones concurrentes) para validar el pipeline:
-./aws/launch-load-test.sh --instances 2 --runners 2
+./aws/launch-load-test.sh --instances 2 --runners 2 --on-demand
 
 # Carga objetivo (100 concurrentes):
 ./aws/launch-load-test.sh --instances 10 --runners 10
