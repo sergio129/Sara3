@@ -63,6 +63,11 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
+# Infra CDK y tooling de carga (no van en la imagen; cdk.out causa recursión)
+infra/
+aws/
+results/
+
 # Documentación grande
 docs/
 README.md
