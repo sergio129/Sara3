@@ -16,8 +16,8 @@ services:
       DISPLAY: ""
       QT_QPA_PLATFORM: "offscreen"
       JAVA_OPTS: "-Xmx2048m -Xms512m"
-      CHROME_BIN: "/usr/bin/chromium-browser"
-      maxParallelForks: "8"
+      CHROME_BIN: "/usr/bin/google-chrome"
+      RUNNERS: "8"
     
     # Volúmenes
     volumes:
@@ -30,11 +30,11 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '16'
+          memory: 32G
+        reservations:
           cpus: '2'
           memory: 4G
-        reservations:
-          cpus: '1'
-          memory: 2G
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -48,8 +48,10 @@ services:
         max-size: "10m"
         max-file: "3"
     
-    # Comando
-    command: ./batch_test_8p.sh
+    # Comando: corre las 50 clases con N forks en paralelo (RUNNERS).
+    # El entrypoint ya hace `bash -c "$@"`, por eso va como string único
+    # (sin envolver en otro bash -c) para que ${RUNNERS} se expanda en el contenedor.
+    command: ["./gradlew test --parallel --continue -PmaxParallelForks=$${RUNNERS}"]
 
   # ============================================================
   # SARA3 - Menú Interactivo (para desarrollo)
