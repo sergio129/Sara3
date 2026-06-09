@@ -48,3 +48,7 @@ Thumbs.db
 *.bak
 .env
 .env.local
+
+# Config local de carga AWS (contiene IDs de cuenta)
+aws/config.env
+results/
