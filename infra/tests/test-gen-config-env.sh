@@ -25,7 +25,7 @@ grep -q '^SUBNET_ID=subnet-123$' "$tmp/config.env" || { echo "FAIL SUBNET_ID"; e
 grep -q '^SECURITY_GROUP_ID=sg-123$' "$tmp/config.env" || { echo "FAIL SG"; exit 1; }
 grep -q '^IAM_INSTANCE_PROFILE=prof-123$' "$tmp/config.env" || { echo "FAIL PROFILE"; exit 1; }
 grep -q '^AMI_ID=ami-123$' "$tmp/config.env" || { echo "FAIL AMI"; exit 1; }
-grep -q '^INSTANCE_TYPE=r5.2xlarge$' "$tmp/config.env" || { echo "FAIL INSTANCE_TYPE"; exit 1; }
+grep -q '^INSTANCE_TYPE=r5.4xlarge$' "$tmp/config.env" || { echo "FAIL INSTANCE_TYPE"; exit 1; }
 grep -q '^INSTANCES=10$' "$tmp/config.env" || { echo "FAIL INSTANCES"; exit 1; }
 grep -q '^RUNNERS=10$' "$tmp/config.env" || { echo "FAIL RUNNERS"; exit 1; }
 echo "OK gen-config-env"

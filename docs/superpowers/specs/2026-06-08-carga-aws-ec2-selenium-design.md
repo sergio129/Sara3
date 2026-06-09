@@ -42,10 +42,13 @@ Componentes:
 
 1. **ECR** — repositorio para publicar la imagen `sara3` (pull rápido en-región
    desde EC2).
-2. **Launch template** — instancia `r5.2xlarge` spot (8 vCPU / 64 GB; holgado
-   para 10 Chrome ≈ ~25 GB), con Docker disponible (AMI con Docker o instalación
-   en `user-data`), rol IAM con acceso de lectura a ECR y escritura al bucket S3,
-   y `InstanceInitiatedShutdownBehavior=terminate`.
+2. **Launch template** — instancia `r5.4xlarge` (16 vCPU / 128 GB; sin
+   sobre-suscripción de CPU para 10 Chrome), con Docker disponible (AMI con Docker
+   o instalación en `user-data`), rol IAM con acceso de lectura a ECR y escritura
+   al bucket S3, y `InstanceInitiatedShutdownBehavior=terminate`.
+   - **Paralelismo:** el nº de forks paralelos = `min(maxParallelForks, --max-workers)`.
+     El `user-data` pasa `--max-workers=${RUNNERS} -PmaxParallelForks=${RUNNERS}` y
+     `gradle.properties` tiene `org.gradle.workers.max=16` (antes 8 topaba a 8 forks).
 3. **`user-data` por instancia** — recibe `SHARD`, `RUNNERS`, `S3_BUCKET`,
    `RUN_ID`; hace login a ECR, `docker run` de la imagen con el `--tests` de su
    shard, sube `target/site` + logs a S3 y ejecuta `shutdown` (→ terminate).
@@ -111,8 +114,8 @@ pares de instancias. `shard = índice_instancia % 5`:
 
 ## Costos (orden de magnitud)
 
-10× `r5.2xlarge` spot ≈ ~US$0.15–0.25/h c/u → ~US$1.5–2.5/h la flota. Una corrida
-de ~30–40 min ≈ ~US$1–2 (se auto-terminan).
+10× `r5.4xlarge` (on-demand ≈ ~US$1.0/h c/u; spot ≈ ~US$0.30–0.50/h c/u). Una
+corrida on-demand de ~30–40 min ≈ ~US$5–7; en spot ≈ ~US$2–3 (se auto-terminan).
 
 ## Riesgos y mitigaciones
 

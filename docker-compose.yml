@@ -51,7 +51,7 @@ services:
     # Comando: corre las 50 clases con N forks en paralelo (RUNNERS).
     # El entrypoint ya hace `bash -c "$@"`, por eso va como string único
     # (sin envolver en otro bash -c) para que ${RUNNERS} se expanda en el contenedor.
-    command: ["./gradlew test --parallel --continue -PmaxParallelForks=$${RUNNERS}"]
+    command: ["./gradlew test --parallel --continue --max-workers=$${RUNNERS} -PmaxParallelForks=$${RUNNERS}"]
 
   # ============================================================
   # SARA3 - Menú Interactivo (para desarrollo)

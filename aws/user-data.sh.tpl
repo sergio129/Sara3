@@ -32,7 +32,7 @@ docker run --rm \
   -v /tmp/out/target:/app/target \
   -v /tmp/out/logs:/app/logs \
   "$IMAGE" \
-  "./gradlew test --continue -PmaxParallelForks=${RUNNERS} ${TESTS_ARGS}" \
+  "./gradlew test --continue --max-workers=${RUNNERS} -PmaxParallelForks=${RUNNERS} ${TESTS_ARGS}" \
   > "/tmp/out/logs/instance-${INSTANCE_ID}.log" 2>&1
 RC=$?
 set -e

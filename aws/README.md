@@ -51,6 +51,14 @@ resumen.
 instancias a la vez → 100 sesiones concurrentes, cada escenario en 2 máquinas
 (ejercita la reutilización de los 50 usuarios).
 
+## Paralelismo por instancia
+
+Cada instancia corre `RUNNERS` runners (Chrome) en paralelo. El nº real de forks
+es `min(maxParallelForks, --max-workers)`; el orquestador pasa
+`--max-workers=$RUNNERS -PmaxParallelForks=$RUNNERS`, y `gradle.properties` tiene
+`org.gradle.workers.max=16` para no topar (antes 8 limitaba a 8 forks). Para
+`RUNNERS=10` se usa `r5.4xlarge` (16 vCPU / 128 GB), sin sobre-suscripción de CPU.
+
 ## Resultados
 
 `s3://<bucket>/run-<RUN_ID>/instance-<id>/` (reporte Serenity + log). El
