@@ -95,17 +95,194 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2: Alinear CHROME_BIN en el servicio sara3-single
+## Task 1b: Normalizar CRLF→LF en el Dockerfile
 
 **Files:**
-- Modify: `docker-compose.yml` (servicio `sara3-single`, bloque `environment`)
+- Modify: `Dockerfile` (stage `builder` y stage runtime)
 
-**Contexto:** El servicio define `CHROME_BIN: "/usr/bin/chromium-browser"`, pero
-la imagen `selenium/standalone-chrome` y el `Dockerfile` usan
-`/usr/bin/google-chrome`. Hay tres servicios con la misma línea; este edit toca
-**solo** el bloque de `sara3-single` (el que define `TEST_NUM: "01"`).
+**Contexto (hallazgo en ejecución):** El repo tiene `core.autocrlf=true` y todos
+los scripts shell (`docker-entrypoint.sh`, `docker-menu.sh`, `gradlew`,
+`run-tests-linux.sh`, ...) están con CRLF en el working tree. El `Dockerfile` los
+copia tal cual, por lo que el `ENTRYPOINT` y `gradlew` fallarían dentro de la
+imagen (el kernel buscaría `/bin/bash\r`). Decisión del usuario: normalizar
+**dentro del Dockerfile** (no tocar el working tree ni el flujo Windows).
 
-- [ ] **Step 1: Localizar la línea dentro de sara3-single**
+- [ ] **Step 1: Normalizar en el stage builder (antes del chmod)**
+
+Reemplazar:
+
+```dockerfile
+RUN chmod +x gradlew run-tests-linux.sh && \
+    ./gradlew --version && ./gradlew dependencies --write-locks 2>&1 || true
+```
+
+por:
+
+```dockerfile
+RUN find . -type f \( -name "*.sh" -o -name "gradlew" \) -exec sed -i 's/\r$//' {} + && \
+    chmod +x gradlew run-tests-linux.sh && \
+    ./gradlew --version && ./gradlew dependencies --write-locks 2>&1 || true
+```
+
+- [ ] **Step 2: Normalizar los scripts re-copiados desde el host en el stage runtime**
+
+Reemplazar:
+
+```dockerfile
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY docker-menu.sh /app/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x gradlew run-tests-linux.sh && \
+    mkdir -p logs target/reports
+```
+
+por:
+
+```dockerfile
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY docker-menu.sh /app/
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x gradlew run-tests-linux.sh && \
+    mkdir -p logs target/reports
+```
+
+- [ ] **Step 3: Verificar sintaxis del Dockerfile vía compose**
+
+Run: `docker compose config --quiet`
+Expected: sin errores.
+
+- [ ] **Step 4: Confirmar los edits**
+
+Run: `grep -n "sed -i 's/\\\\r\$//'" Dockerfile`
+Expected: dos coincidencias (stage builder y stage runtime).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add Dockerfile
+git commit -m "fix(docker): normalizar CRLF a LF en scripts dentro de la imagen
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 2: Corregir docker-compose.yml (CHROME_BIN + compose válido)
+
+**Files:**
+- Modify: `docker-compose.yml`
+
+**Contexto:** Dos arreglos en el mismo archivo:
+1. **CHROME_BIN** del servicio `sara3-single` apunta a `/usr/bin/chromium-browser`,
+   pero la imagen `selenium/standalone-chrome` y el `Dockerfile` usan
+   `/usr/bin/google-chrome`.
+2. **Hallazgo en ejecución:** `docker compose config` falla porque `resources` y
+   `restart_policy` están directamente bajo los servicios; en la spec de Compose
+   deben ir bajo `deploy:`. Compose valida el archivo completo, así que esto
+   bloquea `build`/`run` de cualquier servicio. Fix mínimo e intent-preserving:
+   envolver esos bloques bajo `deploy:` en los tres servicios.
+
+- [ ] **Step 0a: Mover `resources` + `restart_policy` bajo `deploy:` en `sara3-batch`**
+
+Reemplazar:
+
+```yaml
+    # Recursos
+    resources:
+      limits:
+        cpus: '2'
+        memory: 4G
+      reservations:
+        cpus: '1'
+        memory: 2G
+    
+    # Restarts
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+```
+
+por:
+
+```yaml
+    # Recursos
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+```
+
+- [ ] **Step 0b: Mover `resources` bajo `deploy:` en `sara3-interactive`**
+
+Reemplazar (el bloque que está entre `volumes:` y `logging:` de `sara3-interactive`, con `cpus: '2'`):
+
+```yaml
+    resources:
+      limits:
+        cpus: '2'
+        memory: 4G
+      reservations:
+        cpus: '1'
+        memory: 2G
+    
+    logging:
+```
+
+por:
+
+```yaml
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    
+    logging:
+```
+
+- [ ] **Step 0c: Mover `resources` bajo `deploy:` en `sara3-single`**
+
+Reemplazar (el bloque con `cpus: '1'` / `cpus: '0.5'`):
+
+```yaml
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+      reservations:
+        cpus: '0.5'
+        memory: 1G
+```
+
+por:
+
+```yaml
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+```
+
+- [ ] **Step 1: Localizar la línea CHROME_BIN dentro de sara3-single**
 
 Run: `grep -n "chromium-browser\|TEST_NUM" docker-compose.yml`
 Expected: ver el `TEST_NUM: "01"` y, justo arriba en ese mismo servicio, la línea `CHROME_BIN: "/usr/bin/chromium-browser"`.
@@ -221,3 +398,31 @@ hubo `BUILD SUCCESSFUL`, y la ruta del reporte. No se hace commit de artefactos
 - **Type consistency:** nombres consistentes (`sara3-single`, `TEST_NUM=01`,
   `CasesRunner01`, `/usr/bin/google-chrome`, `target/site/serenity/index.html`)
   en todas las tareas.
+
+---
+
+## Notas de ejecución y resultado (2026-06-08)
+
+Durante la ejecución se descubrieron 3 bloqueos preexistentes que el plan no
+anticipaba; los tres se resolvieron como parte del trabajo:
+
+1. **CRLF en scripts shell** (`core.autocrlf=true`): rompía el ENTRYPOINT y
+   `gradlew` dentro de la imagen. → Task 1b (normalización en Dockerfile).
+   Commit `5fd8421`.
+2. **`docker-compose.yml` inválido**: `resources`/`restart_policy` fuera de
+   `deploy:` hacían fallar `docker compose config`. → Task 2 ampliada.
+   Commit `eb17f18`.
+3. **Doble `bash -c` + comillas simples** en el `command` de `sara3-single`:
+   el test "pasaba" (exit 0) pero Gradle nunca corría. Lo detectó la
+   verificación de la Task 4. → `command` como string único.
+   Commit `977db8b`.
+
+Otros commits: Task 1 (guard TTY) `a85a80e`.
+
+**Resultado final:** pipeline Docker **validado de extremo a extremo**. Tras el
+fix #3, la corrida ejecutó realmente: Gradle compiló, Chrome arrancó en Xvfb,
+interactuó con la app real y se generó `target/site/serenity/index.html`. El
+test funcional **falló** (`1 test completed, 1 failed`) por un
+`org.openqa.selenium.TimeoutException` (120s) en el paso de negocio
+"Transicionar caso adaptativo" — falla de la **app destino**, no de la
+infraestructura. Objetivo del smoke (validar el pipeline) **cumplido**.
