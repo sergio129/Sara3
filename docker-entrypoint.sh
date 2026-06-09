@@ -63,10 +63,15 @@ else
     EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
         echo ""
-        echo "⚠️ El comando falló con código $EXIT_CODE. Regresando al menú principal..."
-        echo ""
-        bash /app/docker-menu.sh
-        EXIT_CODE=$?
+        echo "⚠️ El comando falló con código $EXIT_CODE."
+        if [ -t 0 ]; then
+            echo "Regresando al menú principal..."
+            echo ""
+            bash /app/docker-menu.sh
+            EXIT_CODE=$?
+        else
+            echo "Sin TTY: finalizando con el código de error del comando."
+        fi
     fi
 fi
 
