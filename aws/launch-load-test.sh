@@ -92,6 +92,7 @@ for i in $(seq 0 $(( INSTANCES - 1 ))); do
   cmd="aws ec2 run-instances --region $AWS_REGION \
     --image-id $AMI_ID --instance-type $INSTANCE_TYPE \
     --subnet-id $SUBNET_ID --security-group-ids $SECURITY_GROUP_ID \
+    --no-associate-public-ip-address \
     --iam-instance-profile Name=$IAM_INSTANCE_PROFILE \
     --instance-initiated-shutdown-behavior terminate \
     $MARKET_OPT \

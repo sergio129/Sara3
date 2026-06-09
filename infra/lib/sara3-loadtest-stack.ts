@@ -10,8 +10,9 @@ export class Sara3LoadTestStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // Subred especifica (en vpc-0693b2b9993c5c4fe)
-    const subnet = ec2.Subnet.fromSubnetId(this, 'LoadTestSubnet', 'subnet-0ec3b6eb89f3ae0e2');
+    // Subred PRIVADA (rutea 0.0.0.0/0 -> NAT nat-07df8711d251e1051) en vpc-0693b2b9993c5c4fe.
+    // Asi el egress sale por la EIP fija de la NAT (44.216.127.207 / 52.2.92.147), whitelisteable.
+    const subnet = ec2.Subnet.fromSubnetId(this, 'LoadTestSubnet', 'subnet-0c8516fdad13ed1e6');
 
     // Security group existente (provisto): las instancias lo reutilizan.
     const sg = ec2.SecurityGroup.fromSecurityGroupId(this, 'LoadTestSg', 'sg-0658467e965f57371');
