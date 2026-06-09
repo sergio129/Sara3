@@ -15,8 +15,9 @@ if (-not (Test-Path $outputPath)) {
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$machineName = $env:COMPUTERNAME
-$userName = $env:USERNAME
+# Cross-platform (Windows y Linux/contenedor): .NET en vez de variables propias de Windows
+$machineName = [System.Net.Dns]::GetHostName()
+$userName = [System.Environment]::UserName
 
 # ===== FUNCIONES UTILITARIAS =====
 
@@ -566,7 +567,7 @@ foreach ($jsonFile in $jsonFiles) {
 
 # ===== GENERAR CSV =====
 
-$csvPath = "$outputPath\step_details_$timestamp.csv"
+$csvPath = Join-Path $outputPath "step_details_$timestamp.csv"
 $csvLines = @('"Test","Batch","Maquina","Usuario","Descripcion","Accion","Elemento","Valor","Tiempo (ms)","Tiempo (s)","Tiempo (min)","Estado","Error Type","Error Message"')
 
 foreach ($step in $allSteps) {
@@ -600,7 +601,7 @@ Write-Host "CSV generado: $csvPath" -ForegroundColor Green
 
 # ===== GENERAR EXCEL CON COM =====
 
-$excelPath = "$outputPath\step_details_$timestamp.xlsx"
+$excelPath = Join-Path $outputPath "step_details_$timestamp.xlsx"
 $failedTests = ($testStats | Where-Object { $_.Estado -eq "FAILED" }).Count
 $passedTests = ($testStats | Where-Object { $_.Estado -eq "PASSED" }).Count
 
@@ -674,7 +675,7 @@ if ($excelSuccess) {
 
 # ===== GENERAR HTML PROFESIONAL =====
 
-$htmlPath = "$outputPath\step_details_$timestamp.html"
+$htmlPath = Join-Path $outputPath "step_details_$timestamp.html"
 
 $successCount = @($allSteps | Where-Object { $_.Estado -eq 'SUCCESS' }).Count
 $errorCount = @($allSteps | Where-Object { $_.Estado -eq 'ERROR' }).Count
