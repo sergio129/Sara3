@@ -31,8 +31,8 @@ COPY --from=builder /app /app
 COPY docker-entrypoint.sh /usr/local/bin/
 COPY docker-menu.sh /app/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
-    chmod +x gradlew run-tests-linux.sh && \
-    mkdir -p logs target/reports
+    chmod +x gradlew run-tests-linux.sh batch_test_8p.sh && \
+    mkdir -p logs target/site/serenity
 
 # Variables de entorno
 ENV DISPLAY=:99 \

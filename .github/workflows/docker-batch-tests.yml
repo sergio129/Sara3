@@ -1,9 +1,9 @@
 name: Docker - Batch Tests Sara3
 
 on:
-  schedule:
+#  schedule:
     # Ejecutar diariamente a las 2 AM UTC
-    - cron: '0 2 * * *'
+    #- cron: '0 2 * * *'
   
   # Permitir trigger manual
   workflow_dispatch:
@@ -26,13 +26,13 @@ jobs:
 
     steps:
       - name: Checkout código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
@@ -41,17 +41,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Ejecutar batch tests 8 paralelo
+      - name: Ejecutar batch tests (${{ github.event.inputs.parallelForks || '8' }} paralelos)
         run: |
+          mkdir -p reports logs
           docker run --rm \
-            -v ${{ github.workspace }}/reports:/app/target/reports \
+            -v ${{ github.workspace }}/reports:/app/target/site/serenity \
             -v ${{ github.workspace }}/logs:/app/logs \
             sara3:${{ github.sha }} \
-            batch_test_8p.sh
+            "bash /app/batch_test_8p.sh ${{ github.event.inputs.parallelForks || '8' }}"
 
       - name: Upload reportes
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sara3-batch-reports
           path: |
@@ -65,12 +66,10 @@ jobs:
           echo "## 📊 Reportes Generados" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -d "reports" ]; then
-            echo "### CSV Reports:" >> $GITHUB_STEP_SUMMARY
-            ls -lh reports/*.csv 2>/dev/null | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || echo "No CSV reports found" >> $GITHUB_STEP_SUMMARY
-            
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### HTML Reports:" >> $GITHUB_STEP_SUMMARY
+            echo "### Serenity / HTML:" >> $GITHUB_STEP_SUMMARY
             ls -lh reports/*.html 2>/dev/null | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || echo "No HTML reports found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No se generó el directorio reports/" >> $GITHUB_STEP_SUMMARY
           fi
 
   publish:
@@ -82,13 +81,13 @@ jobs:
 
     steps:
       - name: Checkout código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -96,7 +95,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -107,7 +106,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true

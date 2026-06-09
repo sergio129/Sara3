@@ -64,7 +64,7 @@ docker build -t sara3:latest .
 Ejecuta este comando:
 
 ```bash
-docker run --rm -it -v C:\Mis_Proyectos\Sara3:/app sara3:latest
+docker run --rm -it -v D:\Proyectos\Sara3:/app sara3:latest
 ```
 
 **⚠️ IMPORTANTE: Cambia la ruta**

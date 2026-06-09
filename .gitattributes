@@ -1,0 +1,5 @@
+# Forzar finales de línea LF en scripts que se ejecutan en Linux/Docker
+*.sh text eol=lf
+gradlew text eol=lf
+docker-entrypoint.sh text eol=lf
+docker-menu.sh text eol=lf
