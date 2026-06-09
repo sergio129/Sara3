@@ -27,20 +27,19 @@ services:
       - ./logs:/app/logs
     
     # Recursos
-    resources:
-      limits:
-        cpus: '2'
-        memory: 4G
-      reservations:
-        cpus: '1'
-        memory: 2G
-    
-    # Restarts
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
     
     # Logs
     logging:
@@ -73,20 +72,21 @@ services:
       - ./target/site:/app/target/site
       - ./logs:/app/logs
     
-    resources:
-      limits:
-        cpus: '2'
-        memory: 4G
-      reservations:
-        cpus: '1'
-        memory: 2G
-    
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    
+
     # Menú interactivo
     stdin_open: true
     tty: true
@@ -106,7 +106,7 @@ services:
       DISPLAY: ""
       QT_QPA_PLATFORM: "offscreen"
       JAVA_OPTS: "-Xmx2048m -Xms512m"
-      CHROME_BIN: "/usr/bin/chromium-browser"
+      CHROME_BIN: "/usr/bin/google-chrome"
       TEST_NUM: "01"  # Cambiar número de test
     
     volumes:
@@ -114,13 +114,14 @@ services:
       - ./target/site:/app/target/site
       - ./logs:/app/logs
     
-    resources:
-      limits:
-        cpus: '1'
-        memory: 2G
-      reservations:
-        cpus: '0.5'
-        memory: 1G
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
     
     logging:
       driver: "json-file"
