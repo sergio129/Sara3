@@ -11,7 +11,7 @@ on:
       parallelForks:
         description: 'Número de paralelos (1-50)'
         required: false
-        default: '8'
+        default: '1'
 
 env:
   REGISTRY: ghcr.io
