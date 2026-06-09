@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Orquestador de prueba de carga en EC2 spot.
+# Orquestador de prueba de carga en EC2 (spot por defecto).
 # Uso:
-#   launch-load-test.sh [--instances N] [--runners M] [--dry-run]
+#   launch-load-test.sh [--instances N] [--runners M] [--on-demand] [--dry-run]
 #   launch-load-test.sh --download <RUN_ID>
 #   launch-load-test.sh --kill
+# --on-demand: usa instancias on-demand (sin spot). Util si la cuenta no tiene el
+#   service-linked role de spot (AWSServiceRoleForEC2Spot).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
@@ -14,6 +16,7 @@ DRY_RUN=false
 ACTION="launch"
 DOWNLOAD_RUN_ID=""
 MAX_CLASSES=50
+SPOT=true
 
 # Cargar config si existe
 [ -f "$HERE/config.env" ] && source "$HERE/config.env"
@@ -23,6 +26,7 @@ while [ $# -gt 0 ]; do
     --instances) INSTANCES="$2"; shift 2;;
     --runners) RUNNERS="$2"; shift 2;;
     --dry-run) DRY_RUN=true; shift;;
+    --on-demand) SPOT=false; shift;;
     --download) ACTION="download"; DOWNLOAD_RUN_ID="$2"; shift 2;;
     --kill) ACTION="kill"; shift;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
@@ -68,7 +72,9 @@ require_vars AWS_REGION ECR_IMAGE S3_BUCKET INSTANCE_TYPE AMI_ID SUBNET_ID SECUR
 
 NUM_SHARDS=$(( (MAX_CLASSES + RUNNERS - 1) / RUNNERS ))
 RUN_ID="$(date -u +%Y%m%d-%H%M%S 2>/dev/null || echo manual)"
-echo "RUN_ID=$RUN_ID  INSTANCES=$INSTANCES  RUNNERS=$RUNNERS  NUM_SHARDS=$NUM_SHARDS"
+MARKET_OPT=""
+[ "$SPOT" = true ] && MARKET_OPT="--instance-market-options 'MarketType=spot'"
+echo "RUN_ID=$RUN_ID  INSTANCES=$INSTANCES  RUNNERS=$RUNNERS  NUM_SHARDS=$NUM_SHARDS  SPOT=$SPOT"
 
 for i in $(seq 0 $(( INSTANCES - 1 ))); do
   shard=$(( i % NUM_SHARDS ))
@@ -88,7 +94,7 @@ for i in $(seq 0 $(( INSTANCES - 1 ))); do
     --subnet-id $SUBNET_ID --security-group-ids $SECURITY_GROUP_ID \
     --iam-instance-profile Name=$IAM_INSTANCE_PROFILE \
     --instance-initiated-shutdown-behavior terminate \
-    --instance-market-options 'MarketType=spot' \
+    $MARKET_OPT \
     --user-data file://$ud \
     --tag-specifications 'ResourceType=instance,Tags=[{Key=Project,Value=sara3-loadtest},{Key=RunId,Value=$RUN_ID},{Key=Shard,Value=$shard}]'"
   echo "-> instancia $i (shard $shard)"
