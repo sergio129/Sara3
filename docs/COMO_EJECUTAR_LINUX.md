@@ -52,6 +52,33 @@ Sobreescribe `TEST_NUM` sin editar archivos (usa 2 dígitos):
 docker compose run --rm -e TEST_NUM=15 sara3-single
 ```
 
+## 2b. Ejecutar en paralelo (todas las clases)
+
+El servicio `sara3-batch` corre las **50 clases** `CasesRunner01-50` con N en
+paralelo. La perilla es la variable `RUNNERS` (default `8`):
+
+```bash
+# Default: 8 en paralelo
+docker compose run --rm sara3-batch
+
+# Cambiar el paralelismo sin editar archivos
+docker compose run --rm -e RUNNERS=12 sara3-batch
+```
+
+Guía rápida de capacidad en este hardware (~39 GB libres, 20 cores), a ~2 GB por
+runner:
+
+| RUNNERS | RAM aprox. | Recomendación |
+|---------|-----------|----------------|
+| 4  | ~8 GB  | Conservador, máxima estabilidad |
+| 8  | ~20 GB | **Recomendado** |
+| 12 | ~28 GB | Agresivo; vigilar timeouts de la app |
+
+> Subir `RUNNERS` por encima de ~12 requiere elevar también el techo de recursos
+> del contenedor (`deploy.resources.limits` de `sara3-batch`, hoy 16 CPU / 32 GB).
+> Muchos forks golpean la misma app remota → más probabilidad de `TimeoutException`;
+> el batch usa `--continue` para que un fallo no tumbe la corrida completa.
+
 ## 3. Ver los resultados
 
 ### Reporte Serenity (HTML interactivo) — lo principal
