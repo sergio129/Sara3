@@ -21,6 +21,11 @@ docker pull "$IMAGE"
 
 mkdir -p /tmp/out/target /tmp/out/logs
 
+# Registrar la IP publica de SALIDA de esta instancia (para whitelisting en la app).
+# En subred publica, esta IP es la misma con la que la instancia llega a la app.
+EGRESS_IP="$(curl -s --max-time 10 https://checkip.amazonaws.com 2>/dev/null || echo unknown)"
+echo "EGRESS_IP=${EGRESS_IP}" | tee /tmp/out/logs/egress_ip.txt
+
 # Ejecutar el shard (RUNNERS forks en paralelo)
 set +e
 docker run --rm \
