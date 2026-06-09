@@ -130,7 +130,10 @@ services:
         max-file: "3"
     
     # Ejecutar test individual
-    command: bash -c "./gradlew test --tests 'com.sara.automation.runners.CasesRunner$${TEST_NUM}'"
+    # NOTA: el entrypoint ya hace `bash -c "$@"`, por eso aquí va el comando como
+    # string único (sin envolver en otro bash -c) y sin comillas simples, para
+    # que ${TEST_NUM} se expanda en el contenedor.
+    command: ["./gradlew test --tests com.sara.automation.runners.CasesRunner$${TEST_NUM}"]
 
 networks:
   default:
