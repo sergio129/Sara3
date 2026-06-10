@@ -474,18 +474,40 @@ function Extract-TestSteps {
         $timeS = Format-WithComma -Value ($timeMs / 1000) -Decimals 2
         $stepDetails = Extract-StepDetails -Description $step.description
         
-        # Extraer error del paso si existe
+        # Extraer error del paso si existe.
+        # Serenity marca fallos como ERROR / FAILURE / COMPROMISED y guarda el detalle
+        # en step.exception como OBJETO: { errorType, message, stackTrace }
         $stepError = ""
         $stepErrorType = "Sin Error"
-        if ($step.result -eq "ERROR" -and $step.error) {
-            $stepError = $step.error
-            $stepErrorType = Get-ErrorType -message $stepError
+        $stepErrorSource = ""
+        $esFallo = @("ERROR", "FAILURE", "COMPROMISED") -contains $step.result
+        if ($esFallo) {
+            $exMsg = ""
+            $exClass = ""
+            if ($step.exception) {
+                $exMsg = [string]$step.exception.message
+                $exClass = [string]$step.exception.errorType
+                # Fallback si exception no es objeto (string plano)
+                if ([string]::IsNullOrWhiteSpace($exMsg)) { $exMsg = [string]$step.exception }
+
+                # Origen del fallo (archivo:linea): preferir el primer frame del codigo del proyecto
+                if ($step.exception.stackTrace) {
+                    $frame = $step.exception.stackTrace | Where-Object { $_.declaringClass -like "com.sara.automation.*" } | Select-Object -First 1
+                    if (-not $frame) { $frame = $step.exception.stackTrace | Select-Object -First 1 }
+                    if ($frame -and $frame.fileName) {
+                        $stepErrorSource = "$($frame.fileName):$($frame.lineNumber)"
+                    }
+                }
+            }
+            # Construir mensaje detallado: [clase de excepcion] mensaje
+            if ($exClass) {
+                $stepError = "[$exClass] $exMsg"
+            } else {
+                $stepError = $exMsg
+            }
+            $stepErrorType = Get-ErrorType -errorMessage $stepError
         }
-        elseif ($step.result -eq "ERROR" -and $step.exception) {
-            $stepError = $step.exception
-            $stepErrorType = Get-ErrorType -message $stepError
-        }
-        
+
         $result += [PSCustomObject]@{
             Test = $testName
             Batch = $batch
@@ -496,8 +518,10 @@ function Extract-TestSteps {
             Tiempo_ms = $timeMs
             Tiempo_s = $timeS
             Estado = $step.result
+            EsFallo = $esFallo
             ErrorMessage = $stepError
             ErrorType = $stepErrorType
+            ErrorSource = $stepErrorSource
         }
         
         if ($step.children -and $step.children.Count -gt 0) {
@@ -541,7 +565,7 @@ foreach ($jsonFile in $jsonFiles) {
         $totalMin = Format-WithComma -Value ($totalMs / 60000) -Decimals 2
         
         # Detectar estado del test
-        $errorSteps = $steps | Where-Object { $_.Estado -eq "ERROR" }
+        $errorSteps = $steps | Where-Object { $_.EsFallo }
         $testState = if ($errorSteps.Count -gt 0) { "FAILED" } else { "PASSED" }
         
         $testErrorMsg = ""
@@ -568,13 +592,14 @@ foreach ($jsonFile in $jsonFiles) {
 # ===== GENERAR CSV =====
 
 $csvPath = Join-Path $outputPath "step_details_$timestamp.csv"
-$csvLines = @('"Test","Batch","Maquina","Usuario","Descripcion","Accion","Elemento","Valor","Tiempo (ms)","Tiempo (s)","Tiempo (min)","Estado","Error Type","Error Message"')
+$csvLines = @('"Test","Batch","Maquina","Usuario","Descripcion","Accion","Elemento","Valor","Tiempo (ms)","Tiempo (s)","Tiempo (min)","Estado","Error Type","Error Message","Origen Error"')
 
 foreach ($step in $allSteps) {
     $desc = $step.Descripcion -replace '"', '""'
     $errorMsg = $step.ErrorMessage -replace '"', '""'
-    $errorType = if($step.Estado -eq "ERROR") { $step.ErrorType } else { "" }
-    $errorMsg = if($step.Estado -eq "ERROR") { $errorMsg } else { "" }
+    $errorType = if($step.EsFallo) { $step.ErrorType } else { "" }
+    $errorMsg = if($step.EsFallo) { $errorMsg } else { "" }
+    $errorSource = if($step.EsFallo) { $step.ErrorSource } else { "" }
     
     $line = @(
         "`"$($step.Test)`""
@@ -591,6 +616,7 @@ foreach ($step in $allSteps) {
         "`"$($step.Estado)`""
         "`"$errorType`""
         "`"$errorMsg`""
+        "`"$errorSource`""
     ) -join ","
     
     $csvLines += $line
@@ -617,8 +643,9 @@ $stepsSheet = $allSteps | Select-Object @{N="Test"; E={$_.Test}},
                                         @{N="Tiempo (ms)"; E={$_.Tiempo_ms}},
                                         @{N="Tiempo (s)"; E={$_.Tiempo_s}},
                                         @{N="Estado"; E={$_.Estado}},
-                                        @{N="Error Type"; E={if($_.Estado -eq "ERROR") { $_.ErrorType } else { "" }}},
-                                        @{N="Error Message"; E={if($_.Estado -eq "ERROR") { $_.ErrorMessage } else { "" }}}
+                                        @{N="Error Type"; E={if($_.EsFallo) { $_.ErrorType } else { "" }}},
+                                        @{N="Error Message"; E={if($_.EsFallo) { $_.ErrorMessage } else { "" }}},
+                                        @{N="Origen Error"; E={if($_.EsFallo) { $_.ErrorSource } else { "" }}}
 
 # Hoja 2: Pasos lentos
 $slowSteps = $allSteps | Where-Object { $_.Tiempo_ms -gt 5000 } | Sort-Object Tiempo_ms -Descending
@@ -633,7 +660,7 @@ $slowSheet = if ($slowSteps.Count -gt 0) {
                                @{N="Tiempo (ms)"; E={$_.Tiempo_ms}},
                                @{N="Tiempo (s)"; E={$_.Tiempo_s}},
                                @{N="Estado"; E={$_.Estado}},
-                               @{N="Error Type"; E={if($_.Estado -eq "ERROR") { $_.ErrorType } else { "" }}}
+                               @{N="Error Type"; E={if($_.EsFallo) { $_.ErrorType } else { "" }}}
 } else {
     @([PSCustomObject]@{ Mensaje = "Sin pasos lentos" })
 }
@@ -678,7 +705,7 @@ if ($excelSuccess) {
 $htmlPath = Join-Path $outputPath "step_details_$timestamp.html"
 
 $successCount = @($allSteps | Where-Object { $_.Estado -eq 'SUCCESS' }).Count
-$errorCount = @($allSteps | Where-Object { $_.Estado -eq 'ERROR' }).Count
+$errorCount = @($allSteps | Where-Object { $_.EsFallo }).Count
 $slowCount = @($allSteps | Where-Object { $_.Tiempo_ms -gt 5000 }).Count
 $totalTime = ($allSteps | Measure-Object -Property Tiempo_s -Sum).Sum
 
@@ -951,8 +978,8 @@ $html = @"
 "@
 
 foreach ($step in $allSteps) {
-    $badgeClass = if($step.Estado -eq 'SUCCESS') { 'badge-success' } else { 'badge-error' }
-    $errorDisplay = if($step.Estado -eq "ERROR") { $step.ErrorType } else { "-" }
+    $badgeClass = if($step.EsFallo) { 'badge-error' } else { 'badge-success' }
+    $errorDisplay = if($step.EsFallo) { $step.ErrorType } else { "-" }
     $rowClass = $step.Estado
     
     $html += @"
@@ -979,7 +1006,7 @@ $html += @"
             <div class="error-summary">
 "@
 
-$errorsByType = $allSteps | Where-Object { $_.Estado -eq 'ERROR' } | Group-Object -Property ErrorType | Sort-Object -Property Count -Descending
+$errorsByType = $allSteps | Where-Object { $_.EsFallo } | Group-Object -Property ErrorType | Sort-Object -Property Count -Descending
 $totalErrors = $errorCount
 
 foreach ($errorGroup in $errorsByType) {
@@ -1005,19 +1032,21 @@ $html += @"
                         <th>Descripción</th>
                         <th>Error Type</th>
                         <th>Mensaje de Error</th>
+                        <th>Origen (archivo:línea)</th>
                         <th>Tiempo (ms)</th>
                     </tr>
                 </thead>
                 <tbody>
 "@
 
-foreach ($step in ($allSteps | Where-Object { $_.Estado -eq 'ERROR' })) {
+foreach ($step in ($allSteps | Where-Object { $_.EsFallo })) {
     $html += @"
                     <tr class="ERROR">
                         <td><strong>$(Encode-HtmlSpecialChars $step.Test)</strong></td>
                         <td>$(Encode-HtmlSpecialChars $step.Descripcion)</td>
                         <td><span class="badge badge-error">$($step.ErrorType)</span></td>
                         <td><small>$(Encode-HtmlSpecialChars $step.ErrorMessage)</small></td>
+                        <td><code>$(Encode-HtmlSpecialChars $step.ErrorSource)</code></td>
                         <td>$($step.Tiempo_ms)</td>
                     </tr>
 
