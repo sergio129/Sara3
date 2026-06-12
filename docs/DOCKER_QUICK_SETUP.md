@@ -146,7 +146,7 @@ docker run --rm -it -v C:\Mis_Proyectos\Sara3:/app sara3:latest
 docker build -t sara3:latest .
 
 # 2. Ejecutar contenedor
-docker run --rm -it -v C:\Mis_Proyectos\Sara3:/app sara3:latest
+docker run --rm -it -v E:\Proyectos\Sara3:/app sara3:latest
 
 # 3. En el menú, escribe: 6
 # 4. Presiona Enter
