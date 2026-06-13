@@ -16,6 +16,25 @@ update_parallel_forks() {
     echo -e "${GREEN}[CONFIG] maxParallelForks configurado a: $forks${NC}"
 }
 
+# Función para generar reportes Excel/CSV/HTML (reusa el mismo .ps1 que Windows vía PowerShell Core)
+generate_reports() {
+    echo ""
+    echo -e "${BLUE}[INFO] Generando reportes (Excel, CSV, HTML)...${NC}"
+    if command -v pwsh &> /dev/null; then
+        set +e
+        pwsh -ExecutionPolicy Bypass -File script/generate_step_details_excel_report_CLEAN.ps1 \
+            -serenityReportPath /app/target/site/serenity \
+            -outputPath /app/target/reports
+        set -e
+        echo -e "${GREEN}[INFO] Reportes en: /app/target/reports/${NC}"
+        echo "        - step_details_*.xlsx (Excel)"
+        echo "        - step_details_*.csv  (CSV)"
+        echo "        - step_details_*.html (HTML)"
+    else
+        echo -e "${YELLOW}[WARN] pwsh no disponible; se omiten reportes Excel/CSV/HTML${NC}"
+    fi
+}
+
 # Función para ejecutar tests
 run_tests() {
     local test_class=$1
@@ -44,6 +63,10 @@ run_tests() {
     
     echo ""
     echo -e "${CYAN}[INFO] Reporte disponible en: target/site/serenity/index.html${NC}"
+
+    # Generar reportes Excel/CSV/HTML automáticamente al terminar (igual que run_tests.bat en Windows)
+    generate_reports
+
     echo ""
     read -p "Presiona ENTER para continuar..."
 }

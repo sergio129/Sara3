@@ -1,3 +1,9 @@
+# Forzar finales de línea LF en scripts que se ejecutan en Linux/Docker
+*.sh text eol=lf
+gradlew text eol=lf
+docker-entrypoint.sh text eol=lf
+docker-menu.sh text eol=lf
+
 # Los scripts de carga AWS se ejecutan en Linux/EC2 (cloud-init y host).
 # Forzar LF en checkout para que CRLF no rompa el user-data ni los .sh,
 # independientemente de core.autocrlf.

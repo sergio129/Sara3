@@ -8,6 +8,7 @@ import com.sara.automation.tasks.OpenCasesPage;
 import com.sara.automation.tasks.TransicionarEstadosCaso;
 import com.sara.automation.tasks.ValidarEstadoCaso;
 import com.sara.automation.utils.CredentialsReader;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
@@ -27,6 +28,30 @@ import java.util.List;
 import java.util.Map;
 
 public class CasesStepDefinitions {
+
+    // Resuelve el chromedriver una vez por JVM (cada fork paralelo es una JVM
+    // independiente), antes de que Serenity instancie el driver @Managed.
+    // - En Docker (selenium/standalone-chrome) el chromedriver ya viene
+    //   preinstalado: lo usamos directamente, sin descargar por red ni arriesgar
+    //   desajustes de versión con el Chrome de la imagen.
+    // - En local (Windows) no hay driver: WebDriverManager lo descarga,
+    //   evitando depender de Selenium Manager, que fallaba al ejecutar
+    //   selenium-manager.exe.
+    static {
+        String[] preinstalados = {"/usr/bin/chromedriver", "/usr/local/bin/chromedriver"};
+        String driverPreinstalado = null;
+        for (String ruta : preinstalados) {
+            if (new java.io.File(ruta).canExecute()) {
+                driverPreinstalado = ruta;
+                break;
+            }
+        }
+        if (driverPreinstalado != null) {
+            System.setProperty("webdriver.chrome.driver", driverPreinstalado);
+        } else {
+            WebDriverManager.chromedriver().setup();
+        }
+    }
 
     @Managed(driver = "chrome")
     WebDriver browser;

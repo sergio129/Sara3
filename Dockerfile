@@ -20,6 +20,20 @@ FROM selenium/standalone-chrome:latest
 USER root
 WORKDIR /app
 
+# Instalar PowerShell Core (pwsh) para generar reportes Excel/CSV/HTML (mismo .ps1 que Windows)
+# Método tarball: independiente de la versión de Ubuntu base
+ARG PWSH_VERSION=7.4.6
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates libicu-dev && \
+    curl -fsSL -o /tmp/pwsh.tar.gz \
+      "https://github.com/PowerShell/PowerShell/releases/download/v${PWSH_VERSION}/powershell-${PWSH_VERSION}-linux-x64.tar.gz" && \
+    mkdir -p /opt/microsoft/powershell/7 && \
+    tar zxf /tmp/pwsh.tar.gz -C /opt/microsoft/powershell/7 && \
+    chmod +x /opt/microsoft/powershell/7/pwsh && \
+    ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh && \
+    rm -f /tmp/pwsh.tar.gz && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Copiar JDK 11 desde eclipse-temurin (sin apt-get)
 COPY --from=jdk-source /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
@@ -31,10 +45,9 @@ COPY --from=builder /app /app
 # Copiar scripts de entrada y menú
 COPY docker-entrypoint.sh /usr/local/bin/
 COPY docker-menu.sh /app/
-RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
-    chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
-    chmod +x gradlew run-tests-linux.sh && \
-    mkdir -p logs target/reports
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x gradlew run-tests-linux.sh batch_test_8p.sh && \
+    mkdir -p logs target/site/serenity
 
 # Variables de entorno
 ENV DISPLAY=:99 \

@@ -242,6 +242,7 @@ $testStats = $uniqueTestExecutions | ForEach-Object {
     $primerError = $steps | Where-Object { $_."Error Type" -and $_."Error Type".Trim() -ne "" } | Select-Object -First 1
     $errorType = if ($primerError) { $primerError."Error Type" } else { "" }
     $errorMsg = if ($primerError) { $primerError."Error Message" } else { "" }
+    $errorSource = if ($primerError) { $primerError."Origen Error" } else { "" }
     
     $totalPasos = $steps.Count
     $pasosLentos = ($steps | Where-Object { [int]$_."Tiempo (ms)" -gt 5000 }).Count
@@ -259,6 +260,7 @@ $testStats = $uniqueTestExecutions | ForEach-Object {
         "Estado" = $estado
         "Error Type" = $errorType
         "Error Message" = $errorMsg
+        "Origen Error" = $errorSource
     }
 }
 
@@ -353,6 +355,7 @@ $allStepsWithMin = $allSteps | ForEach-Object {
         "Estado" = $_.Estado
         "Error Type" = $_."Error Type"
         "Error Message" = $_."Error Message"
+        "Origen Error" = $_."Origen Error"
         "Archivo Origen" = $_."Archivo Origen"
     }
 }
@@ -428,6 +431,7 @@ try {
                 "Tiempo (min)" = $tiempoMin
                 "Error Type" = $_."Error Type"
                 "Error Message" = $_."Error Message"
+                "Origen Error" = $_."Origen Error"
             }
         })
         $pasosParaMostrar | Export-Excel -Path $excelPath -WorksheetName "Detalles Paso a Paso" -AutoSize -TableStyle "Light1" -Append
@@ -436,7 +440,7 @@ try {
     
     # Hoja 6: Tests Fallidos
     if ($failedTests.Count -gt 0) {
-        $failedTestsDetailed = @($failedTests | Select-Object Test, Batch, Maquina, Usuario, "Total Pasos", "Pasos Lentos", "Tiempo Promedio Paso (min)", "Error Type", "Error Message")
+        $failedTestsDetailed = @($failedTests | Select-Object Test, Batch, Maquina, Usuario, "Total Pasos", "Pasos Lentos", "Tiempo Promedio Paso (min)", "Error Type", "Error Message", "Origen Error")
         $failedTestsDetailed | Export-Excel -Path $excelPath -WorksheetName "Tests Fallidos + Errores" -AutoSize -TableStyle "Light1" -Append
         Write-Host "  OK Hoja 6: Tests Fallidos + Errores ($($failedTests.Count))" -ForegroundColor Green
     }
