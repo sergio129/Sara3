@@ -15,7 +15,7 @@ RUNNERS=10
 DRY_RUN=false
 ACTION="launch"
 DOWNLOAD_RUN_ID=""
-MAX_CLASSES=50
+MAX_CLASSES=10
 SPOT=true
 
 # Cargar config si existe
