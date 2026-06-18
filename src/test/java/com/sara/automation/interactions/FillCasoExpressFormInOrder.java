@@ -20,7 +20,6 @@ import net.serenitybdd.screenplay.waits.WaitUntil;
 import java.time.Duration;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 import static net.serenitybdd.screenplay.Tasks.instrumented;
 import static net.serenitybdd.screenplay.matchers.WebElementStateMatchers.isVisible;
@@ -294,23 +293,8 @@ public class FillCasoExpressFormInOrder implements Interaction {
                     });
 
                     List<WebElement> todosLosItems = driver.findElements(listItemsAll);
-                    List<WebElement> itemsDisponibles = todosLosItems.stream()
-                        .filter(WebElement::isDisplayed)
-                        .collect(Collectors.toList());
-
-                    if (!itemsDisponibles.isEmpty()) {
-                        String itemAlternativo = itemsDisponibles.get(0).getText().trim();
-                        System.out.println("  [seleccionarComboMunicipioWebDriver] SALTANDO '" + valor + "' - usando alternativa: '" + itemAlternativo + "'");
-                        WebElement alt = itemsDisponibles.get(0);
-                        try {
-                            alt.click();
-                        } catch (org.openqa.selenium.ElementNotInteractableException ex) {
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", alt);
-                        }
-                        return;
-                    }
-
-                    throw new RuntimeException("No hay opciones disponibles en el dropdown");
+                    seleccionarItemQueCoincide(driver, todosLosItems, valor, "seleccionarComboMunicipioWebDriver");
+                    return;
                 } catch (Exception fallbackError) {
                     if (intento == 3) {
                         throw new RuntimeException("Error en fallback de municipio", fallbackError);
@@ -441,23 +425,8 @@ public class FillCasoExpressFormInOrder implements Interaction {
                     });
 
                     List<WebElement> todosLosServicios = driver.findElements(listItemsAll);
-                    List<WebElement> serviciosDisponibles = todosLosServicios.stream()
-                        .filter(WebElement::isDisplayed)
-                        .collect(Collectors.toList());
-
-                    if (!serviciosDisponibles.isEmpty()) {
-                        String servicioAlternativo = serviciosDisponibles.get(0).getText().trim();
-                        System.out.println("  [seleccionarComboServicioWebDriver] SALTANDO '" + valor + "' - usando alternativa: '" + servicioAlternativo + "'");
-                        WebElement servicioAlt = serviciosDisponibles.get(0);
-                        try {
-                            servicioAlt.click();
-                        } catch (org.openqa.selenium.ElementNotInteractableException ex) {
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", servicioAlt);
-                        }
-                        return;
-                    }
-
-                    throw new RuntimeException("No hay servicios disponibles en el dropdown");
+                    seleccionarItemQueCoincide(driver, todosLosServicios, valor, "seleccionarComboServicioWebDriver");
+                    return;
                 } catch (Exception fallbackError) {
                     if (intento == 3) {
                         throw new RuntimeException("Error en fallback de servicio", fallbackError);
@@ -576,23 +545,8 @@ public class FillCasoExpressFormInOrder implements Interaction {
                     });
 
                     List<WebElement> todosLosItems = driver.findElements(listItemsAll);
-                    List<WebElement> itemsDisponibles = todosLosItems.stream()
-                        .filter(WebElement::isDisplayed)
-                        .collect(Collectors.toList());
-
-                    if (!itemsDisponibles.isEmpty()) {
-                        String itemAlternativo = itemsDisponibles.get(0).getText().trim();
-                        System.out.println("  [seleccionarComboWebDriver] SALTANDO '" + valor + "' - usando alternativa: '" + itemAlternativo + "'");
-                        WebElement alt = itemsDisponibles.get(0);
-                        try {
-                            alt.click();
-                        } catch (org.openqa.selenium.ElementNotInteractableException ex) {
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", alt);
-                        }
-                        return;
-                    }
-
-                    throw new RuntimeException("No hay opciones disponibles en el dropdown");
+                    seleccionarItemQueCoincide(driver, todosLosItems, valor, "seleccionarComboWebDriver");
+                    return;
                 } catch (Exception fallbackError) {
                     if (intento == 4) {
                         throw new RuntimeException("Error en fallback de combo", fallbackError);
@@ -744,6 +698,34 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
         actor.attemptsTo(WaitUntil.the(CasoCreatePage.Opcion_Lista_Contiene.of(valor), isVisible()).forNoMoreThan(10).seconds());
         actor.attemptsTo(Click.on(CasoCreatePage.Opcion_Lista_Contiene.of(valor)));
+    }
+
+    /**
+     * Selecciona de la lista el item cuyo texto COINCIDE con el valor solicitado.
+     *
+     * IMPORTANTE (evita falso positivo): antes, si el valor del feature no aparecía, se elegía
+     * "la primera alternativa disponible" y el paso continuaba como exitoso, llenando el caso
+     * con datos distintos a los pedidos. Ahora, si el valor solicitado no está en la lista,
+     * se lanza excepción para que el caso FALLE en vez de reportar un éxito falso.
+     *
+     * Se usa coincidencia por "contiene" (insensible a mayúsculas) para tolerar diferencias
+     * menores de formato (espacios, sufijos), pero nunca selecciona un valor no relacionado.
+     */
+    private void seleccionarItemQueCoincide(WebDriver driver, List<WebElement> items, String valor, String origen) {
+        String objetivo = valor == null ? "" : valor.trim().toLowerCase();
+        WebElement match = items.stream()
+                .filter(WebElement::isDisplayed)
+                .filter(el -> el.getText() != null && el.getText().trim().toLowerCase().contains(objetivo))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        "[" + origen + "] El valor '" + valor + "' no está disponible en la lista. "
+                      + "No se selecciona una alternativa para no falsear el resultado del caso."));
+        System.out.println("  [" + origen + "] Coincidencia para '" + valor + "': '" + match.getText().trim() + "'");
+        try {
+            match.click();
+        } catch (org.openqa.selenium.ElementNotInteractableException ex) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", match);
+        }
     }
 
     private String generarNumeroExpediente15() {
