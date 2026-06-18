@@ -1,6 +1,5 @@
 package com.sara.automation.tasks;
 
-import com.sara.automation.ui.AgentPage;
 import com.sara.automation.ui.LoginPage;
 import net.serenitybdd.screenplay.Actor;
 import net.serenitybdd.screenplay.Performable;
@@ -12,6 +11,7 @@ import net.serenitybdd.screenplay.actions.Open;
 import net.serenitybdd.screenplay.waits.WaitUntil;
 import net.thucydides.core.annotations.Step;
 import org.hamcrest.Matchers;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -58,33 +58,50 @@ public class LoginWithCognito implements Task {
                 Click.on(LoginPage.COGNITO_CONTINUE_BUTTON)
         );
 
-        // 4. Esperar a estar en Agent page (verificar URL contiene "/agent")
-        esperarEnAgentPage(actor);
+        // 4. Verificar que el login realmente fue exitoso
+        verificarLoginExitoso(actor);
     }
 
-    private void esperarEnAgentPage(Actor actor) {
-        // Esperar a que la URL contenga "/agent" usando WebDriverWait dinámico
+    /**
+     * Verifica que la autenticación fue exitosa.
+     *
+     * IMPORTANTE (evita falso positivo): la versión anterior forzaba la navegación a
+     * {@code AgentPage.URL} y luego afirmaba que la URL contenía "/agent" — una tautología,
+     * porque la URL la abría el propio test. Así un login fallido (credenciales inválidas,
+     * error de Cognito) se reportaba como exitoso.
+     *
+     * Señal real de login correcto: tras enviar las credenciales, Cognito nos redirige FUERA
+     * de su dominio de login. Si seguimos en {@code amazoncognito.com}, el login NO fue válido.
+     * La navegación a /agent y la validación de contenido autenticado las hace el paso
+     * siguiente (GoToAgentPage), que sí comprueba que "Caso Express" esté visible.
+     */
+    private void verificarLoginExitoso(Actor actor) {
         WebDriver driver = BrowseTheWeb.as(actor).getDriver();
         try {
-            new WebDriverWait(driver, Duration.ofSeconds(8)).until(
-                d -> d.getCurrentUrl().contains("/agent")
-            );
-            return;
-        } catch (TimeoutException e) {
-            System.out.println("  No se llegó automáticamente a /agent en 8 segundos, forzando navegación...");
-        }
-
-        // Si no llegó automáticamente a /agent, fuerza la navegación a la URL de Agent.
-        actor.attemptsTo(Open.url(AgentPage.URL));
-
-        // Esperar nuevamente a que la URL contenga "/agent"
-        try {
+            // 1) Salir de Cognito = credenciales aceptadas. Si seguimos aquí, el login falló.
             new WebDriverWait(driver, Duration.ofSeconds(20)).until(
-                d -> d.getCurrentUrl().contains("/agent")
+                d -> !d.getCurrentUrl().contains("amazoncognito.com")
             );
-            return;
+
+            // 2) CRÍTICO: esperar a que termine la redirección OAuth y la app quede en su
+            //    dominio. Si navegáramos a /agent mientras la app aún procesa /auth?code=...,
+            //    abortaríamos el intercambio del token y la sesión quedaría sin autenticar
+            //    (síntoma: el botón "Caso Express" nunca aparece en el paso siguiente).
+            new WebDriverWait(driver, Duration.ofSeconds(30)).until(
+                d -> d.getCurrentUrl().contains("sura-konecta.com")
+                  && !d.getCurrentUrl().contains("/auth?")
+                  && !d.getCurrentUrl().contains("amazoncognito.com")
+            );
+
+            // 3) Esperar a que la SPA termine de cargar antes de continuar.
+            new WebDriverWait(driver, Duration.ofSeconds(20)).until(
+                d -> "complete".equals(((JavascriptExecutor) d).executeScript("return document.readyState"))
+            );
         } catch (TimeoutException e) {
-            throw new AssertionError("Timeout esperando a llegar a AgentPage. URL actual: " + driver.getCurrentUrl());
+            throw new AssertionError(
+                "Login NO completado: la app no quedó autenticada/cargada tras enviar las credenciales "
+                + "(credenciales inválidas, error de Cognito o redirección OAuth incompleta). "
+                + "URL actual: " + driver.getCurrentUrl(), e);
         }
     }
 }
