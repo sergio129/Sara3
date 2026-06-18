@@ -10,7 +10,12 @@ services:
       dockerfile: Dockerfile
     image: sara3:latest
     container_name: sara3-batch-tests
-    
+
+    # Memoria compartida amplia para Chrome (tmpfs en RAM). Imprescindible tras
+    # quitar --disable-dev-shm-usage de serenity.properties: sin esto, /dev/shm
+    # queda en 64 MB y los renderers de Chrome caen bajo carga concurrente.
+    shm_size: "4gb"
+
     # Variables de entorno
     environment:
       DISPLAY: ""
@@ -62,7 +67,10 @@ services:
       dockerfile: Dockerfile
     image: sara3:latest
     container_name: sara3-interactive
-    
+
+    # /dev/shm amplio para Chrome (ver nota en sara3-batch)
+    shm_size: "2gb"
+
     environment:
       DISPLAY: ""
       QT_QPA_PLATFORM: "offscreen"
@@ -103,7 +111,10 @@ services:
       dockerfile: Dockerfile
     image: sara3:latest
     container_name: sara3-single-test
-    
+
+    # /dev/shm amplio para Chrome (ver nota en sara3-batch)
+    shm_size: "2gb"
+
     environment:
       DISPLAY: ""
       QT_QPA_PLATFORM: "offscreen"

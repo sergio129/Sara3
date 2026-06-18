@@ -29,6 +29,7 @@ echo "EGRESS_IP=${EGRESS_IP}" | tee /tmp/out/logs/egress_ip.txt
 # Ejecutar el shard (RUNNERS forks en paralelo)
 set +e
 docker run --rm \
+  --shm-size=4g \
   -v /tmp/out/target:/app/target \
   -v /tmp/out/logs:/app/logs \
   "$IMAGE" \

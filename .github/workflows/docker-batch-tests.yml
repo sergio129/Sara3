@@ -45,6 +45,7 @@ jobs:
         run: |
           mkdir -p reports logs
           docker run --rm \
+            --shm-size=4g \
             -v ${{ github.workspace }}/reports:/app/target/site/serenity \
             -v ${{ github.workspace }}/logs:/app/logs \
             sara3:${{ github.sha }} \

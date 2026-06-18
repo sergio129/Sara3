@@ -45,7 +45,11 @@ COPY --from=builder /app /app
 # Copiar scripts de entrada y menú
 COPY docker-entrypoint.sh /usr/local/bin/
 COPY docker-menu.sh /app/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+# Normalizar CRLF->LF en los scripts copiados DIRECTO del host en este stage
+# (no pasan por el sed del builder). Sin esto, un working tree con CRLF (autocrlf=true)
+# hornea un shebang "#!/bin/bash\r" y el ENTRYPOINT falla con "no such file or directory".
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh /app/docker-menu.sh && \
     chmod +x gradlew run-tests-linux.sh batch_test_8p.sh && \
     mkdir -p logs target/site/serenity
 

@@ -67,7 +67,8 @@ configure_chrome_headless() {
     export CHROME_HEADLESS="--headless"
     export CHROME_NO_SANDBOX="--no-sandbox"
     export CHROME_DISABLE_GPU="--disable-gpu"
-    export CHROME_DISABLE_DEV_SHM="--disable-dev-shm-usage"
+    # NO --disable-dev-shm-usage: el contenedor usa /dev/shm amplio (--shm-size/shm_size).
+    # Ver nota en serenity.properties. (Estas vars no se consumen; Chrome lee chrome.switches.)
     
     echo -e "${GREEN}Chrome Headless configurado${NC}"
 }

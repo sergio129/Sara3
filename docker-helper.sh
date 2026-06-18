@@ -50,6 +50,7 @@ run_batch_tests() {
     mkdir -p reports logs
     
     docker run --rm \
+        --shm-size=4g \
         -v $(pwd)/reports:/app/target/reports \
         -v $(pwd)/logs:/app/logs \
         sara3:latest \
@@ -66,6 +67,7 @@ run_interactive() {
     mkdir -p reports logs
     
     docker run -it --rm \
+        --shm-size=4g \
         -v $(pwd)/reports:/app/target/reports \
         -v $(pwd)/logs:/app/logs \
         sara3:latest \
@@ -86,6 +88,7 @@ run_single_test() {
     mkdir -p reports
     
     docker run --rm \
+        --shm-size=4g \
         -v $(pwd)/reports:/app/target/reports \
         sara3:latest \
         bash -c "./gradlew test --tests 'com.sara.automation.runners.CasesRunner$test_formatted'"
