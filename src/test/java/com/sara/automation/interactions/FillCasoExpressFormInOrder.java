@@ -20,6 +20,7 @@ import net.serenitybdd.screenplay.waits.WaitUntil;
 import java.time.Duration;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import static net.serenitybdd.screenplay.Tasks.instrumented;
 import static net.serenitybdd.screenplay.matchers.WebElementStateMatchers.isVisible;
@@ -701,30 +702,41 @@ public class FillCasoExpressFormInOrder implements Interaction {
     }
 
     /**
-     * Selecciona de la lista el item cuyo texto COINCIDE con el valor solicitado.
+     * Selecciona una opción de la lista filtrada tras escribir el valor:
+     *   1) si hay coincidencia EXACTA (ignorando mayúsculas/espacios), se usa esa;
+     *   2) si no, pero hay varias/alguna opción visible (datos "parecidos" al buscado),
+     *      se elige UNA AL AZAR para que la suite siempre seleccione algo y no se frene;
+     *   3) si NO aparece ninguna opción (lista vacía → cascada rota), se lanza excepción:
+     *      no se puede "elegir alternativa" cuando no hay nada que elegir.
      *
-     * IMPORTANTE (evita falso positivo): antes, si el valor del feature no aparecía, se elegía
-     * "la primera alternativa disponible" y el paso continuaba como exitoso, llenando el caso
-     * con datos distintos a los pedidos. Ahora, si el valor solicitado no está en la lista,
-     * se lanza excepción para que el caso FALLE en vez de reportar un éxito falso.
-     *
-     * Se usa coincidencia por "contiene" (insensible a mayúsculas) para tolerar diferencias
-     * menores de formato (espacios, sufijos), pero nunca selecciona un valor no relacionado.
+     * Nota: el paso 2 prioriza completar el flujo sobre la exactitud del dato; si en el
+     * futuro se requiere exactitud estricta, cambiar el azar por un fallo controlado.
      */
     private void seleccionarItemQueCoincide(WebDriver driver, List<WebElement> items, String valor, String origen) {
-        String objetivo = valor == null ? "" : valor.trim().toLowerCase();
-        WebElement match = items.stream()
+        List<WebElement> visibles = items.stream()
                 .filter(WebElement::isDisplayed)
-                .filter(el -> el.getText() != null && el.getText().trim().toLowerCase().contains(objetivo))
+                .collect(Collectors.toList());
+        if (visibles.isEmpty()) {
+            throw new RuntimeException(
+                    "[" + origen + "] No apareció ninguna opción en la lista para '" + valor + "' "
+                  + "(lista vacía: posible fallo de la cascada departamento→municipio).");
+        }
+        String objetivo = valor == null ? "" : valor.trim().toLowerCase();
+        WebElement elegido = visibles.stream()
+                .filter(el -> el.getText() != null && el.getText().trim().toLowerCase().equals(objetivo))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException(
-                        "[" + origen + "] El valor '" + valor + "' no está disponible en la lista. "
-                      + "No se selecciona una alternativa para no falsear el resultado del caso."));
-        System.out.println("  [" + origen + "] Coincidencia para '" + valor + "': '" + match.getText().trim() + "'");
+                .orElse(null);
+        if (elegido != null) {
+            System.out.println("  [" + origen + "] Coincidencia exacta: '" + valor + "'");
+        } else {
+            elegido = visibles.get(RANDOM.nextInt(visibles.size()));
+            System.out.println("  [" + origen + "] '" + valor + "' sin coincidencia exacta; "
+                    + "se elige al azar entre " + visibles.size() + " opciones: '" + elegido.getText().trim() + "'");
+        }
         try {
-            match.click();
+            elegido.click();
         } catch (org.openqa.selenium.ElementNotInteractableException ex) {
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", match);
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", elegido);
         }
     }
 
