@@ -136,7 +136,7 @@ Feature: Creacion de Expedientes en el sistema de gestion de casos
 
 
   @batch10
-  Scenario: Test 09 - ANTIOQUIA - MEDELLIN - AUTOS - DESPLAZAMIENTO POR INMOVILIZACION DEL VH 
+  Scenario: Test 10 - ANTIOQUIA - MEDELLIN - AUTOS - DESPLAZAMIENTO POR INMOVILIZACION DEL VH 
     Given el actor tiene un navegador disponible
     When abre la pagina de casos
     And realiza login con credenciales
