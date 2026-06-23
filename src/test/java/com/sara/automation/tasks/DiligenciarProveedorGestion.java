@@ -65,176 +65,64 @@ public class DiligenciarProveedorGestion implements Task {
             System.out.println("  Timeout esperando iframe después de guardar: " + e.getMessage());
         }
 
-        // Primero, cerrar el timer overlay si está visible para no bloquear los elementos
+        // Cerrar el timer overlay SOLO si está presente (chequeo INSTANTÁNEO, sin esperas).
+        // El timer fue deshabilitado; antes este bloque esperaba hasta ~20s (4 selectores x 5s)
+        // buscando un botón inexistente. Ahora findElements resuelve al instante (no bloquea).
         try {
-            // Buscar el botón de cerrar del timer (×) con múltiples selectores alternativos
-            By[] timerCloseSelectors = {
-                // Selector por clase específica del botón de cierre
-                By.xpath("//div[contains(@class, 'kace-timer-overlay')]//button[contains(@class, 'kace-timer-icon-button--danger')]"),
-                // Selector por title
-                By.xpath("//div[contains(@class, 'kace-timer-overlay')]//button[@title='Cerrar']"),
-                // Selector genérico para cualquier botón dentro del timer
-                By.xpath("//div[contains(@class, 'kace-timer-overlay')]//button"),
-                // Selector por aria-label
-                By.xpath("//button[contains(@aria-label, 'Cerrar') or contains(@aria-label, 'Close')]")
-            };
-            
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
-            WebElement closeBtn = null;
-            for (By selector : timerCloseSelectors) {
-                try {
-                    closeBtn = wait.until(ExpectedConditions.elementToBeClickable(selector));
-                    System.out.println("  [DiligenciarProveedorGestion] Timer close button encontrado con selector: " + selector);
-                    break;
-                } catch (TimeoutException e) {
-                    // Continuar con el siguiente selector
-                }
-            }
-            
-            if (closeBtn != null) {
-                closeBtn.click();
-                Thread.sleep(1); // Dar tiempo a que se cierre
+            List<WebElement> timerBtns = driver.findElements(
+                    By.xpath("//div[contains(@class,'kace-timer-overlay')]//button"));
+            if (!timerBtns.isEmpty()) {
+                timerBtns.get(0).click();
                 System.out.println("  [DiligenciarProveedorGestion] Timer cerrado OK");
             } else {
-                System.out.println("  [DiligenciarProveedorGestion] Timer no encontrado con ningún selector (puede ya estar cerrado)");
+                System.out.println("  [DiligenciarProveedorGestion] Timer no presente (deshabilitado), continuando sin esperar");
             }
         } catch (Exception e) {
-            System.out.println("  [DiligenciarProveedorGestion] Error al cerrar timer: " + e.getMessage());
+            System.out.println("  [DiligenciarProveedorGestion] (timer no se pudo cerrar, continuando: " + e.getMessage() + ")");
         }
 
-        // Esperar adicional después de cerrar timer
-        try {
-            Thread.sleep(1);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        // PASO CRÍTICO: Activar el tab de Gestión de proveedores
-        // Estrategia optimizada: 1) 10 TABs para hacer visible, 2) Scroll, 3) Clic directo, 4) Si falla: 16 TABs completos
+        // Activar el tab "Gestión de proveedores".
+        // OPTIMIZACIÓN: clic directo en el anchor del tab (rápido y fiable), en lugar de
+        // navegar con múltiples TAB de teclado. La espera se ancla al contenido REAL del tab
+        // (la grilla de gestión de proveedores visible), no a un input genérico.
+        // El teclado queda solo como fallback si el clic directo falla.
         System.out.println("  [DiligenciarProveedorGestion] Activando tab de Gestión de proveedores...");
         boolean tabEncontrado = false;
         JavascriptExecutor js = (JavascriptExecutor) driver;
-        
-        // PASO 1: Hacer 10 TABs para que el campo "Gestión de Proveedores" sea visible
+        By providerTabLocator = By.xpath("//ul[@role='tablist']//a[contains(@href,'gestionDeProveedores')]");
+        By tabContenidoActivo = By.cssSelector(".formio-component-gestion_proveedor_asistencia_movilidad");
+
+        // VÍA RÁPIDA: clic directo en el anchor del tab.
         try {
-            System.out.println("  [DiligenciarProveedorGestion] Paso 1: Navegando con 10 TABs para visibilidad...");
-            // Re-switch al iframe para asegurar contexto
             driver.switchTo().defaultContent();
-            WebElement iframeElement = driver.findElement(By.id("form_onescript_iframe"));
-            driver.switchTo().frame(iframeElement);
-            
-            WebElement body = driver.findElement(By.tagName("body"));
-            for (int i = 0; i < 10; i++) {
-                body.sendKeys(Keys.TAB);
-                if ((i + 1) % 5 == 0) {
-                    System.out.println("  [DiligenciarProveedorGestion] TAB " + (i + 1) + "/10");
-                }
-            }
-            // Esperar a que el campo esté enfocado después de TABs
-            try {
-                new WebDriverWait(driver, Duration.ofSeconds(3)).until(
-                    ExpectedConditions.presenceOfElementLocated(By.xpath("//input[@type='text']"))
-                );
-            } catch (Exception e) {
-                System.out.println("  [DiligenciarProveedorGestion] Timeout esperando campo tras TABs: " + e.getMessage());
-            }
-            System.out.println("  [DiligenciarProveedorGestion] 10 TABs completados, campo ahora visible");
-        } catch (Exception e) {
-            System.out.println("  [DiligenciarProveedorGestion] Error en navegación TAB (continuando): " + e.getMessage());
-        }
-        
-        // PASO 2: Hacer scroll para asegurar que el área de tabs esté completamente visible
-        try {
-            System.out.println("  [DiligenciarProveedorGestion] Paso 2: Haciendo scroll hacia área de tabs...");
-            // Scroll hacia el contenedor de tabs
-            js.executeScript("window.scrollTo(0, 300);");
-            
-            // Intentar hacer scroll específico al contenedor de tabs si está disponible
+            driver.switchTo().frame(driver.findElement(By.id("form_onescript_iframe")));
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-            WebElement tabContainer = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//ul[@role='tablist']")));
-            js.executeScript("arguments[0].scrollIntoView({block: 'start', inline: 'nearest'});", tabContainer);
-            // Esperar a que el tab esté visible después del scroll
-            wait.until(ExpectedConditions.visibilityOf(tabContainer));
-            System.out.println("  [DiligenciarProveedorGestion] Scroll completado, área de tabs optimizada");
+            WebElement providerTab = wait.until(ExpectedConditions.presenceOfElementLocated(providerTabLocator));
+            js.executeScript("arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", providerTab);
+            // Confirmar que el panel del tab quedó realmente visible.
+            wait.until(ExpectedConditions.visibilityOfElementLocated(tabContenidoActivo));
+            tabEncontrado = true;
+            System.out.println("  [DiligenciarProveedorGestion] ✓ Tab activado con clic directo en el anchor");
         } catch (Exception e) {
-            System.out.println("  [DiligenciarProveedorGestion] Error en scroll (continuando): " + e.getMessage());
-        }
-        
-        // PASO 3: Intentar clic directo en el tab "Gestión de proveedores"
-        By providerTabLocator = By.xpath("//ul[@role='tablist']//a[contains(@href,'gestionDeProveedores')] | //ul[@role='tablist']//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'gestión de proveedores')]");
-        try {
-            System.out.println("  [DiligenciarProveedorGestion] Paso 3: Intentando clic directo en tab...");
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-            
-            WebElement providerTab = null;
-            try {
-                providerTab = wait.until(ExpectedConditions.elementToBeClickable(providerTabLocator));
-                System.out.println("  [DiligenciarProveedorGestion] Tab encontrado con XPath");
-            } catch (Exception ignored) {
-                System.out.println("  [DiligenciarProveedorGestion] XPath falló, intentando JS querySelector...");
-                providerTab = (WebElement) js.executeScript(
-                        "const list = Array.from(document.querySelectorAll(\"ul[role='tablist'] a, ul[role='tablist'] button\"));"
-                                + "const match = list.find(el => el.getAttribute('href') === '#gestionDeProveedores' || el.textContent.toLowerCase().includes('gestión de proveedores'));"
-                                + "return match || null;"
-                );
-            }
-
-            if (providerTab != null) {
-                System.out.println("  [DiligenciarProveedorGestion] Tab encontrado, intentando clic...");
-                try {
-                    providerTab.click();
-                    System.out.println("  [DiligenciarProveedorGestion] Clic normal exitoso");
-                } catch (Exception clickException) {
-                    System.out.println("  [DiligenciarProveedorGestion] Clic normal falló, usando JS click: " + clickException.getMessage());
-                    js.executeScript("arguments[0].click();", providerTab);
-                    System.out.println("  [DiligenciarProveedorGestion] JS click ejecutado");
-                }
-                // Esperar a que el tab se active después del clic
-                try {
-                    new WebDriverWait(driver, Duration.ofSeconds(5)).until(
-                        ExpectedConditions.presenceOfElementLocated(By.xpath("//input[@type='text']"))
-                    );
-                } catch (Exception e) {
-                    System.out.println("  [DiligenciarProveedorGestion] Timeout esperando tab activo: " + e.getMessage());
-                }
-                tabEncontrado = true;
-                System.out.println("  [DiligenciarProveedorGestion] ✓ Tab de Gestión de Proveedores activado con clic directo");
-            }
-        } catch (Exception e) {
-            System.out.println("  [DiligenciarProveedorGestion] Clic directo falló: " + e.getMessage());
+            System.out.println("  [DiligenciarProveedorGestion] Clic directo en tab falló (" + e.getMessage() + "), usando fallback por teclado...");
         }
 
-        // PASO 4 (FALLBACK FINAL): Si el clic directo falló, completar navegación por teclado (16 TABs + Enter)
+        // FALLBACK: navegación por teclado (16 TAB + Enter) solo si el clic directo no funcionó.
         if (!tabEncontrado) {
-            System.out.println("  [DiligenciarProveedorGestion] Paso 4: Completando navegación por teclado (6 TABs adicionales + Enter)...");
             try {
-                // Re-switch al iframe para asegurar contexto
                 driver.switchTo().defaultContent();
-                WebElement iframeElement = driver.findElement(By.id("form_onescript_iframe"));
-                driver.switchTo().frame(iframeElement);
-                
-                // Ya hicimos 10 TABs, enviamos 6 TABs más para completar los 16
+                driver.switchTo().frame(driver.findElement(By.id("form_onescript_iframe")));
                 WebElement body = driver.findElement(By.tagName("body"));
-                for (int i = 0; i < 6; i++) {
+                for (int i = 0; i < 16; i++) {
                     body.sendKeys(Keys.TAB);
                 }
-                System.out.println("  [DiligenciarProveedorGestion] TABs completados (10+6=16)");
-                
-                // Presionar Enter para activar el tab
                 body.sendKeys(Keys.ENTER);
-                // Esperar a que el tab se active después de ENTER
-                try {
-                    new WebDriverWait(driver, Duration.ofSeconds(5)).until(
-                        ExpectedConditions.presenceOfElementLocated(By.xpath("//input[@type='text']"))
-                    );
-                } catch (Exception e) {
-                    System.out.println("  [DiligenciarProveedorGestion] Timeout esperando tab activo tras ENTER: " + e.getMessage());
-                }
-                
+                new WebDriverWait(driver, Duration.ofSeconds(8))
+                        .until(ExpectedConditions.visibilityOfElementLocated(tabContenidoActivo));
                 tabEncontrado = true;
-                System.out.println("  [DiligenciarProveedorGestion] ✓ Navegación por teclado (16 TABs totales) completada");
+                System.out.println("  [DiligenciarProveedorGestion] ✓ Tab activado con navegación por teclado (fallback)");
             } catch (Exception e) {
-                System.out.println("  [DiligenciarProveedorGestion] Error en navegación por teclado: " + e.getMessage());
+                System.out.println("  [DiligenciarProveedorGestion] Fallback por teclado falló: " + e.getMessage());
             }
         }
 

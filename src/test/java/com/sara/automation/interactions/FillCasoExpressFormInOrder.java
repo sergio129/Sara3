@@ -213,9 +213,118 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
     private <T extends Actor> void llenarCombosGeneralesEnOrden(T actor) {
         // Estos combos aparecen en la sección General y dependen de los valores enviados desde el feature.
+        // Usan el método robusto con verificación: espera habilitación (cascada), selecciona y
+        // CONFIRMA que el control quedó con el valor; reintenta si no (evita "no seleccionó nada").
         WebDriver driver = net.serenitybdd.screenplay.abilities.BrowseTheWeb.as(actor).getDriver();
-        seleccionarComboWebDriver(driver, "//div[contains(@class,'formio-component-departamento_solicita')]//div[contains(@class,'custom-dropdown-control')]", departamento);
-        seleccionarComboMunicipioWebDriver(driver, "//div[contains(@class,'formio-component-municipio_solicita')]//div[contains(@class,'custom-dropdown-control')]", municipio);
+        seleccionarComboCustomVerificado(driver, "formio-component-departamento_solicita", departamento);
+        seleccionarComboCustomVerificado(driver, "formio-component-municipio_solicita", municipio);
+    }
+
+    /**
+     * Selección robusta de un dropdown custom (departamento/municipio):
+     *   1. Re-asegura el iframe y espera a que el combo esté HABILITADO (clave para municipio,
+     *      que depende de la cascada de departamento).
+     *   2. Delega la selección a {@link OneScriptDynamicElements#selectCustomDropdownByComponentClass}
+     *      (técnica PROBADA del proyecto: buscador por eventos JS + opción confirmada con
+     *      mousedown/mouseup/click). El click nativo/JS-simple NO commiteaba la opción.
+     *   3. VERIFICA que el control quedó con un valor real (no placeholder); si no, reintenta.
+     */
+    private void seleccionarComboCustomVerificado(WebDriver driver, String componentClass, String valor) {
+        By controlBy = By.cssSelector("." + componentClass + " .custom-dropdown-control");
+        String objetivo = valor == null ? "" : valor.trim();
+
+        int maxIntentos = 4;
+        for (int intento = 1; intento <= maxIntentos; intento++) {
+            try {
+                long t0 = System.currentTimeMillis();
+                // Solo re-entrar al iframe si el control NO es visible en el contexto actual.
+                // Si ya estamos dentro del iframe correcto (lo normal viniendo del paso anterior),
+                // evitamos el salir/entrar redundante (y la posible espera si el iframe se está
+                // re-renderizando). El re-switch queda como red de seguridad por si una operación
+                // previa (acción Screenplay o re-render de formio) reseteó el contexto al documento
+                // principal: sin él, los findElements del combo buscarían fuera del iframe.
+                if (driver.findElements(controlBy).isEmpty()) {
+                    driver.switchTo().defaultContent();
+                    new WebDriverWait(driver, Duration.ofSeconds(20))
+                            .until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("form_onescript_iframe")));
+                }
+                long tFrame = System.currentTimeMillis();
+
+                // 1) Esperar solo a que el control EXISTA (no a la clase 'disabled', que la app
+                //    mantiene ~10s aunque el combo ya es usable). El verdadero gate es
+                //    findOptionByText dentro de la selección: espera hasta que la opción aparezca
+                //    (instantáneo para departamento; lo que tarde la cascada para municipio).
+                new WebDriverWait(driver, Duration.ofSeconds(40)).until(d ->
+                        !d.findElements(controlBy).isEmpty());
+                long tEnabled = System.currentTimeMillis();
+                System.out.println("  [TIMING " + componentClass + "] iframe=" + (tFrame - t0)
+                        + "ms | espera_control=" + (tEnabled - tFrame) + "ms");
+
+                // Idempotente: si ya está en el valor, no hacer nada.
+                if (norm(textoControl(driver, controlBy)).equals(norm(objetivo))) {
+                    System.out.println("  [combo " + componentClass + "] ya estaba en '" + objetivo + "'");
+                    return;
+                }
+
+                // 2) Selección con la técnica probada (la misma de los dropdowns del proveedor).
+                System.out.println("  [combo " + componentClass + "] intento " + intento + ": seleccionando '" + objetivo + "'...");
+                OneScriptDynamicElements.selectCustomDropdownByComponentClass(driver, componentClass, objetivo);
+                long tSelect = System.currentTimeMillis();
+
+                // 3) VERIFICAR que el control quedó con un valor real (no placeholder/vacío).
+                new WebDriverWait(driver, Duration.ofSeconds(10)).until(d -> !esPlaceholder(textoControl(d, controlBy)));
+                long tVerify = System.currentTimeMillis();
+                System.out.println("  [TIMING " + componentClass + "] seleccion=" + (tSelect - tEnabled)
+                        + "ms | verificacion=" + (tVerify - tSelect) + "ms");
+                System.out.println("  [combo " + componentClass + "] ✓ seleccionado: '" + textoControl(driver, controlBy) + "'");
+                return;
+
+            } catch (Exception e) {
+                System.out.println("  [combo " + componentClass + "] intento " + intento + " falló: " + e.getMessage());
+                // Cerrar cualquier dropdown abierto antes de reintentar.
+                try {
+                    driver.findElement(By.tagName("body")).sendKeys(Keys.ESCAPE);
+                } catch (Exception ignored) {
+                }
+                if (intento == maxIntentos) {
+                    throw new RuntimeException("No se pudo seleccionar '" + valor + "' en " + componentClass
+                            + " tras " + maxIntentos + " intentos", e);
+                }
+                try {
+                    Thread.sleep(600);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /** Texto actual del control del dropdown, sin la flecha ▾ y normalizado en espacios. */
+    private String textoControl(WebDriver driver, By controlBy) {
+        try {
+            List<WebElement> els = driver.findElements(controlBy);
+            if (els.isEmpty()) {
+                return "";
+            }
+            String t = els.get(0).getText();
+            return t == null ? "" : t.replace("▾", "").replaceAll("\\s+", " ").trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private boolean esPlaceholder(String texto) {
+        String l = norm(texto);
+        return l.isEmpty() || l.contains("elige una") || l.contains("seleccione") || l.contains("selecciona una");
+    }
+
+    /** minúsculas + sin acentos, para comparar texto de opciones de forma estable. */
+    private String norm(String s) {
+        if (s == null) {
+            return "";
+        }
+        String t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return t.replaceAll("\\s+", " ").trim().toLowerCase();
     }
 
     private void seleccionarComboMunicipioWebDriver(WebDriver driver, String comboXpath, String valor) {
@@ -464,114 +573,6 @@ public class FillCasoExpressFormInOrder implements Interaction {
         System.out.println("  [esperarServicioHabilitado] Servicio habilitado y clickable.");
     }
 
-    private void seleccionarComboWebDriver(WebDriver driver, String comboXpath, String valor) {
-        WebDriverWait waitShort = new WebDriverWait(driver, Duration.ofSeconds(12));
-        WebDriverWait waitLong = new WebDriverWait(driver, Duration.ofSeconds(60));
-
-        By searchSelector = By.cssSelector("input.custom-dropdown-search, input[placeholder*='buscar'], input[placeholder*='Buscar']");
-        By listItemExact = By.xpath("//ul[contains(@class,'custom-dropdown-list')]//li[normalize-space(.)='" + valor + "'] | //li[normalize-space(.)='" + valor + "']");
-        By listItemsAll = By.xpath("//ul[contains(@class,'custom-dropdown-list')]//li");
-
-        for (int intento = 1; intento <= 4; intento++) {
-            try {
-                driver.switchTo().defaultContent();
-                new WebDriverWait(driver, Duration.ofSeconds(20))
-                        .until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("form_onescript_iframe")));
-
-                System.out.println("  [seleccionarComboWebDriver] Intento " + intento + " para seleccionar: " + valor);
-
-                WebElement combo = waitShort.until(ExpectedConditions.elementToBeClickable(By.xpath(comboXpath)));
-                combo.click();
-                // NO ESPERAR - dejar que waitLong encuentre el search field automáticamente
-
-                WebElement search = waitLong.until(ExpectedConditions.visibilityOfElementLocated(searchSelector));
-                search.clear();
-                search.sendKeys(valor);
-                
-                System.out.println("  [seleccionarComboWebDriver] Escribí: " + valor + ", esperando a que aparezca...");
-
-                // ESPERAR a que aparezca el elemento buscado
-                waitLong.until(driver1 -> {
-                    List<WebElement> items = driver1.findElements(listItemExact);
-                    return items.stream().anyMatch(WebElement::isDisplayed);
-                });
-
-                // Clic inteligente con fallback - dentro de un wait que reintenta StaleElementReference
-                boolean clicked = waitLong.until(driver1 -> {
-                    List<WebElement> items = driver1.findElements(listItemExact);
-                    for (WebElement item : items) {
-                        if (item.isDisplayed()) {
-                            try {
-                                item.click();
-                                return true;
-                            } catch (org.openqa.selenium.StaleElementReferenceException ignored) {
-                                // Reintentar en el siguiente poll
-                            } catch (org.openqa.selenium.ElementNotInteractableException ignored) {
-                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", item);
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                });
-
-                if (clicked) {
-                    System.out.println("  [seleccionarComboWebDriver] Valor '" + valor + "' encontrado y clickeado!");
-                    // Esperar mínimo para que se cierre el dropdown, pero sin bloquear indefinidamente
-                    try {
-                        new WebDriverWait(driver, Duration.ofSeconds(2))
-                            .until(ExpectedConditions.invisibilityOfAllElements(driver.findElements(listItemsAll)));
-                    } catch (Exception ignored) {
-                        // Puede que ya esté cerrado - continuar sin bloquear
-                    }
-                    return;
-                }
-
-                throw new RuntimeException("No se pudo hacer clic en el elemento visible");
-
-            } catch (org.openqa.selenium.TimeoutException e) {
-                // Elemento no encontrado - intentar con el primero disponible
-                try {
-                    System.out.println("  [seleccionarComboWebDriver] Intento " + intento + ": '" + valor + "' NO encontrado. Buscando alternativas...");
-                    
-                    WebElement search = driver.findElement(searchSelector);
-                    search.clear();
-                    // NO ESPERAR - el siguiente waitLong buscará los items
-
-                    // ESPERAR a que aparezca algún elemento en la lista
-                    waitLong.until(driver1 -> {
-                        List<WebElement> items = driver1.findElements(listItemsAll);
-                        return items.stream().anyMatch(WebElement::isDisplayed);
-                    });
-
-                    List<WebElement> todosLosItems = driver.findElements(listItemsAll);
-                    seleccionarItemQueCoincide(driver, todosLosItems, valor, "seleccionarComboWebDriver");
-                    return;
-                } catch (Exception fallbackError) {
-                    if (intento == 4) {
-                        throw new RuntimeException("Error en fallback de combo", fallbackError);
-                    }
-                    System.out.println("  [seleccionarComboWebDriver] Error en fallback intento " + intento + ": " + fallbackError.getMessage() + " - reintentando...");
-                }
-
-            } catch (org.openqa.selenium.StaleElementReferenceException stale) {
-                System.out.println("  [seleccionarComboWebDriver] StaleElementReference detectado, reintentando... intento " + intento);
-                continue;
-
-            } catch (Exception e) {
-                if (intento == 4) {
-                    System.out.println("  [seleccionarComboWebDriver] ERROR final: " + e.getMessage());
-                    throw new RuntimeException("Error seleccionando elemento: " + valor, e);
-                }
-                System.out.println("  [seleccionarComboWebDriver] Error en intento " + intento + ": " + e.getMessage() + " - reintentando...");
-            }
-        }
-
-        throw new RuntimeException("Error seleccionando elemento: " + valor + " después de 4 intentos");
-    }
-
-   
-
     private <T extends Actor> void llenarDireccionesYUbicacionEnOrden(T actor) {
         ensureIframeContext(actor);
 
@@ -592,42 +593,24 @@ public class FillCasoExpressFormInOrder implements Interaction {
     }
 
     private <T extends Actor> void llenarServiciosEspecialesYAsignacionEnOrden(T actor) {
-        // Servicios especiales deshabilitado - saltamos directo a Línea y Servicio
-        
-        // Obtener el driver y asegurar contexto del iframe
+        // Servicios especiales deshabilitado - vamos directo a Línea y Servicio.
+        // Línea y Servicio usan el MISMO método robusto/verificado que departamento/municipio:
+        // espera presencia del control y deja que findOptionByText sea el gate real (Servicio
+        // depende de Línea por cascada; espera solo hasta que su opción aparezca, sin bloqueo fijo).
         WebDriver driver = net.serenitybdd.screenplay.abilities.BrowseTheWeb.as(actor).getDriver();
-        
-        // Asegurar que estamos en el iframe antes de cualquier scroll
-        driver.switchTo().defaultContent();
-        new WebDriverWait(driver, Duration.ofSeconds(20))
-                .until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("form_onescript_iframe")));
-        System.out.println("  [llenarServiciosEspecialesYAsignacionEnOrden] Contexto del iframe OK");
-        
-        // Hacer scroll dentro del iframe usando JavaScriptExecutor
-        try {
-            String scrollScript = "var linea = document.evaluate(\"//label[normalize-space()='Línea *' or normalize-space()='Línea']\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue; " +
-                                  "if (linea) { linea.scrollIntoView(true); }";
-            ((JavascriptExecutor) driver).executeScript(scrollScript);
-            Thread.sleep(500);
-            System.out.println("  [llenarServiciosEspecialesYAsignacionEnOrden] Scroll a Línea OK");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        
-        // Línea y Servicio usan custom dropdowns - usar selectores basados en clases, NO en IDs dinámicos
-        seleccionarComboLineaWebDriver(driver, "//div[contains(@class,'formio-component-linea')]//div[contains(@class,'custom-dropdown-control')]", linea);
-        // Asegurarse de que el dropdown de Línea se cerró antes de abrir Servicio
-        ((JavascriptExecutor) driver).executeScript("document.activeElement.blur();");
-        esperarServicioHabilitado(driver);
-        // Usar selector específico que busca por el label "Servicio" (no "Servicio Especial")
-        seleccionarComboServicioWebDriver(driver, "//div[contains(@class,'formio-component-servicio') and .//label[normalize-space()='Servicio' and not(contains(., 'Especial'))]]//div[contains(@class,'custom-dropdown-control')]", servicio);
+        seleccionarComboCustomVerificado(driver, "formio-component-linea", linea);
+        seleccionarComboCustomVerificado(driver, "formio-component-servicio", servicio);
     }
 
     private <T extends Actor> void llenarObservacionFinal(T actor) {
         // Último campo editable del formulario antes de accionar Guardar.
+        long t0 = System.currentTimeMillis();
         actor.attemptsTo(Scroll.to(CasoCreatePage.Observacion_Final));
+        long tScroll = System.currentTimeMillis();
         String observacion = this.observacionFinal != null ? this.observacionFinal : generarObservacionAleatoria();
         llenarCampo(actor, CasoCreatePage.Observacion_Final, observacion);
+        long tFill = System.currentTimeMillis();
+        System.out.println("  [TIMING observacion] scroll=" + (tScroll - t0) + "ms | llenado=" + (tFill - tScroll) + "ms");
     }
 
     private String generarObservacionAleatoria() {
@@ -665,6 +648,7 @@ public class FillCasoExpressFormInOrder implements Interaction {
         // pero desaparezca (NoSuchElement) o quede stale justo antes de escribir.
         // Reintentamos todo el ciclo localizar+escribir para tolerar ese re-render.
         int maxIntentos = 3;
+        long t0 = System.currentTimeMillis();
         for (int intento = 1; intento <= maxIntentos; intento++) {
             // Reingresar al iframe antes de interactuar con el campo.
             ensureIframeContext(actor);
@@ -672,6 +656,7 @@ public class FillCasoExpressFormInOrder implements Interaction {
                 actor.attemptsTo(Scroll.to(target));
                 actor.attemptsTo(WaitUntil.the(target, isVisible()).forNoMoreThan(20).seconds());
                 actor.attemptsTo(Enter.theValue(valor).into(target));
+                System.out.println("  [TIMING campo] '" + target + "' = " + (System.currentTimeMillis() - t0) + "ms");
                 return;
             } catch (org.openqa.selenium.NoSuchElementException
                     | org.openqa.selenium.StaleElementReferenceException e) {
