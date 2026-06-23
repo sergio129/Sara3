@@ -31,8 +31,27 @@ import static net.serenitybdd.screenplay.Tasks.instrumented;
  */
 public class TransicionarEstadosCaso implements Task {
 
+    /**
+     * Si es true, la secuencia se DETIENE tras guardar 'Concluido' (no ejecuta
+     * 'Finalizado'). Se usa en el flujo de captura de expediente + cierre de sesión.
+     */
+    private final boolean detenerEnConcluido;
+
+    public TransicionarEstadosCaso() {
+        this(false);
+    }
+
+    public TransicionarEstadosCaso(boolean detenerEnConcluido) {
+        this.detenerEnConcluido = detenerEnConcluido;
+    }
+
     public static Performable completarSecuencia() {
         return instrumented(TransicionarEstadosCaso.class);
+    }
+
+    /** Transiciona hasta 'Concluido' y se detiene (no ejecuta 'Finalizado'). */
+    public static Performable hastaConcluido() {
+        return instrumented(TransicionarEstadosCaso.class, true);
     }
 
     @Override
@@ -70,6 +89,15 @@ public class TransicionarEstadosCaso implements Task {
                 System.out.println("  [TransicionarEstadosCaso] PASO 3: Transición a CONCLUIDO");
                 actor.attemptsTo(ClickEstadoConcluido.clickEstadoConcluido());
                                 System.out.println("  [TransicionarEstadosCaso] ✓ Estado 'Concluido' completado");
+
+                // CORTE EN CONCLUIDO: para el flujo de captura de expediente + logout,
+                // la secuencia termina aquí (no se ejecuta 'Finalizado').
+                if (detenerEnConcluido) {
+                    System.out.println("  [TransicionarEstadosCaso] ⏹ Detención solicitada en CONCLUIDO. No se ejecuta 'Finalizado'.");
+                    System.out.println("  [TransicionarEstadosCaso] ==================== ✓ TRANSICIONES HASTA CONCLUIDO COMPLETADAS ====================\n");
+                    return;
+                }
+
                 esperarRecargaPaginaConValidacion(driver, "Finalizado");
 
                 // Después de Concluido, Finalizado debe quedar disponible.
@@ -78,6 +106,11 @@ public class TransicionarEstadosCaso implements Task {
                 System.out.println("  [TransicionarEstadosCaso] ✓ VALIDACIÓN OK: 'Finalizado' está disponible - Concluido se guardó correctamente");
             } else {
                 // Ruta corta: después de Aceptado quedó Finalizado directamente.
+                if (detenerEnConcluido) {
+                    throw new RuntimeException(
+                        "Se solicitó detener en 'Concluido', pero tras 'Aceptado' el único estado disponible es 'Finalizado' "
+                      + "(no hay 'Concluido' en esta ruta). Revisa el caso/servicio del escenario.");
+                }
                 System.out.println("  [TransicionarEstadosCaso] ✓ Detectado siguiente estado real: Finalizado");
                 System.out.println("  [TransicionarEstadosCaso] 🔍 VALIDACIÓN POST-ACEPTADO: Confirmando que Finalizado está disponible...");
                 validarQueProximoEstadoEstaDisponible(driver, "Finalizado");

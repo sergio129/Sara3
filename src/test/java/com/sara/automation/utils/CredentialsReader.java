@@ -47,6 +47,7 @@ public class CredentialsReader {
             return bundle.getString("contrasena");
         }
     }
+
 }
 
 

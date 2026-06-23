@@ -330,6 +330,23 @@ $statsByUser = @($testStats | Where-Object { $_.Usuario -and $_.Usuario.Trim() -
 } | Sort-Object "Tests Fallidos" -Descending)
 
 # ============================================
+# Insights clave para el Resumen General (facilita lectura rapida / IA)
+# ============================================
+$peorMaquina = $statsByMachine | Where-Object { $_."Tests Fallidos" -gt 0 } | Select-Object -First 1
+$peorUsuario = $statsByUser | Where-Object { $_."Tests Fallidos" -gt 0 } | Select-Object -First 1
+
+$errorMasFrecuente = $allSteps |
+    Where-Object { $_."Error Type" -and $_."Error Type".Trim() -ne "" } |
+    Group-Object "Error Type" | Sort-Object Count -Descending | Select-Object -First 1
+
+$tiempoTotalMin = [math]::Round((($allSteps | Measure-Object -Property "Tiempo (ms)" -Sum -ErrorAction SilentlyContinue).Sum) / 60000, 2)
+
+$resumenGeneral += [PSCustomObject]@{ "Metrica" = "Tiempo Total Ejecucion (min)"; "Valor" = $tiempoTotalMin }
+$resumenGeneral += [PSCustomObject]@{ "Metrica" = "Maquina con mas Fallos"; "Valor" = if ($peorMaquina) { "$($peorMaquina.'Máquina') ($($peorMaquina.'Tests Fallidos') fallidos)" } else { "Ninguna" } }
+$resumenGeneral += [PSCustomObject]@{ "Metrica" = "Usuario con mas Fallos"; "Valor" = if ($peorUsuario) { "$($peorUsuario.Usuario) ($($peorUsuario.'Tests Fallidos') fallidos)" } else { "Ninguno" } }
+$resumenGeneral += [PSCustomObject]@{ "Metrica" = "Error mas Frecuente"; "Valor" = if ($errorMasFrecuente) { "$($errorMasFrecuente.Name) ($($errorMasFrecuente.Count) veces)" } else { "Ninguno" } }
+
+# ============================================
 # Generar reportes
 # ============================================
 Write-Host ""
@@ -395,25 +412,25 @@ try {
     
     # Hoja 2: Por Usuario
     if ($statsByUser.Count -gt 0) {
-        $statsByUser | Export-Excel -Path $excelPath -WorksheetName "Por Usuario" -AutoSize -TableStyle "Medium2" -Append
+        $statsByUser | Export-Excel -Path $excelPath -WorksheetName "Por Usuario" -AutoSize -TableStyle "Medium2" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 2: Por Usuario ($($statsByUser.Count) usuarios)" -ForegroundColor Green
     }
     
     # Hoja 3: Por Maquina
     if ($statsByMachine.Count -gt 0) {
-        $statsByMachine | Export-Excel -Path $excelPath -WorksheetName "Por Maquina" -AutoSize -TableStyle "Medium2" -Append
+        $statsByMachine | Export-Excel -Path $excelPath -WorksheetName "Por Maquina" -AutoSize -TableStyle "Medium2" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 3: Por Maquina" -ForegroundColor Green
     }
     
     # Hoja 4: Estadísticas por Test
     if ($testStats.Count -gt 0) {
-        $testStats | Export-Excel -Path $excelPath -WorksheetName "Estadisticas por Test" -AutoSize -TableStyle "Light1" -Append
+        $testStats | Export-Excel -Path $excelPath -WorksheetName "Estadisticas por Test" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 4: Estadisticas por Test" -ForegroundColor Green
     }
     
     # Hoja 5: Detalles Paso a Paso (con tiempo en minutos)
     if ($allSteps.Count -gt 0) {
-        $pasosParaMostrar = @($allSteps | Select-Object -First 5000 | ForEach-Object {
+        $pasosParaMostrar = @($allSteps | ForEach-Object {
             $tiempoMs = [int]$_."Tiempo (ms)"
             $tiempoMin = [math]::Round($tiempoMs / 60000, 3)
             [PSCustomObject]@{
@@ -434,14 +451,14 @@ try {
                 "Origen Error" = $_."Origen Error"
             }
         })
-        $pasosParaMostrar | Export-Excel -Path $excelPath -WorksheetName "Detalles Paso a Paso" -AutoSize -TableStyle "Light1" -Append
-        Write-Host "  OK Hoja 5: Detalles Paso a Paso (primeros 5000 de $($allSteps.Count))" -ForegroundColor Green
+        $pasosParaMostrar | Export-Excel -Path $excelPath -WorksheetName "Detalles Paso a Paso" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
+        Write-Host "  OK Hoja 5: Detalles Paso a Paso ($($allSteps.Count) pasos)" -ForegroundColor Green
     }
     
     # Hoja 6: Tests Fallidos
     if ($failedTests.Count -gt 0) {
         $failedTestsDetailed = @($failedTests | Select-Object Test, Batch, Maquina, Usuario, "Total Pasos", "Pasos Lentos", "Tiempo Promedio Paso (min)", "Error Type", "Error Message", "Origen Error")
-        $failedTestsDetailed | Export-Excel -Path $excelPath -WorksheetName "Tests Fallidos + Errores" -AutoSize -TableStyle "Light1" -Append
+        $failedTestsDetailed | Export-Excel -Path $excelPath -WorksheetName "Tests Fallidos + Errores" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 6: Tests Fallidos + Errores ($($failedTests.Count))" -ForegroundColor Green
     }
     
@@ -465,19 +482,19 @@ try {
                     "Porcentaje %" = [math]::Round(($_.Count / $stepsConError.Count) * 100, 2)
                     "Ejemplo Mensaje" = $resumenError
                 }
-            } | Sort-Object Cantidad -Descending | Select-Object -First 30)
+            } | Sort-Object Cantidad -Descending)
             $erroresComunes = $tiposError
         }
     }
     
     if ($erroresComunes.Count -gt 0) {
-        @($erroresComunes) | Export-Excel -Path $excelPath -WorksheetName "Errores Comunes" -AutoSize -TableStyle "Light1" -Append
-        Write-Host "  OK Hoja 7: Errores Comunes (Top $($erroresComunes.Count))" -ForegroundColor Green
+        @($erroresComunes) | Export-Excel -Path $excelPath -WorksheetName "Errores Comunes" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
+        Write-Host "  OK Hoja 7: Errores Comunes ($($erroresComunes.Count) tipos)" -ForegroundColor Green
     }
     
     # Hoja 8: Pasos Lentos (con tiempo en minutos)
     if ($slowSteps.Count -gt 0) {
-        $slowStepsWithMin = @($slowSteps | Select-Object -First 1000 | ForEach-Object {
+        $slowStepsWithMin = @($slowSteps | ForEach-Object {
             $tiempoMs = [int]$_."Tiempo (ms)"
             $tiempoMin = [math]::Round($tiempoMs / 60000, 3)
             [PSCustomObject]@{
@@ -498,8 +515,8 @@ try {
                 "Error Message" = $_."Error Message"
             }
         })
-        $slowStepsWithMin | Export-Excel -Path $excelPath -WorksheetName "Pasos Lentos (Top 1k)" -AutoSize -TableStyle "Light1" -Append
-        Write-Host "  OK Hoja 8: Pasos Lentos (primeros 1000 de $($slowSteps.Count))" -ForegroundColor Green
+        $slowStepsWithMin | Export-Excel -Path $excelPath -WorksheetName "Pasos Lentos" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
+        Write-Host "  OK Hoja 8: Pasos Lentos ($($slowSteps.Count) pasos)" -ForegroundColor Green
     }
     
     $excelFileInfo = Get-Item $excelPath
