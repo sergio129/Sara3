@@ -1,0 +1,27 @@
+Asunto: Informe de pruebas automatizadas SARA – Ejecución del 19 de junio (90.8% de éxito)
+
+----------------------------------------------------------------------
+
+Buenos días,
+
+Comparto el informe consolidado de la última ejecución de pruebas automatizadas sobre la plataforma SARA, realizada el 19 de junio. La suite se ejecutó en paralelo sobre varias máquinas, validando un total de 1,176 escenarios de negocio de las líneas AUTOS y HOGARES en un único ciclo.
+
+Resumen de resultados:
+
+- La ejecución alcanzó una tasa de éxito global del 90.82% (1,068 pruebas exitosas de 1,176).
+- Esto representa una mejora de más de 20 puntos frente al ciclo anterior y una reducción del 73% en la cantidad de fallos, lo que confirma que las correcciones aplicadas al framework tuvieron un impacto directo y positivo.
+- Los errores remanentes están bien identificados y son técnicamente trazables, en su mayoría asociados al flujo de diligenciamiento de Caso Express y a las transiciones de estado del caso.
+- El principal eje de mejora a futuro es el rendimiento, ya que una parte importante de los pasos presenta tiempos de respuesta elevados en los flujos de login y Caso Express.
+
+Conclusión general:
+
+La automatización de SARA ha alcanzado un nivel de madurez y estabilidad sólido. La aplicación se comportó de forma confiable en la gran mayoría de los escenarios, y los problemas pendientes están acotados y con un plan de acción claro de corto plazo para llevar la suite hacia un objetivo del 95% o superior. En conjunto, los resultados respaldan el uso de esta suite como un mecanismo confiable de validación continua de la plataforma.
+
+En el documento adjunto encontrarán el detalle completo: resultados, análisis de errores con su origen, análisis de rendimiento y un plan de acción priorizado.
+
+Quedo atento a sus comentarios.
+
+Saludos cordiales,
+
+[Tu nombre]
+Equipo de Automatización QA – Konecta
