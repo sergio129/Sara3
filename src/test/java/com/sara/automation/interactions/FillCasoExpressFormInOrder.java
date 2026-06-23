@@ -1,6 +1,7 @@
 package com.sara.automation.interactions;
 
 import com.sara.automation.ui.CasoCreatePage;
+import com.sara.automation.utils.ExpedienteContext;
 import net.serenitybdd.screenplay.Actor;
 import net.serenitybdd.screenplay.Interaction;
 import net.serenitybdd.screenplay.Performable;
@@ -50,10 +51,6 @@ public class FillCasoExpressFormInOrder implements Interaction {
             "San Fernando", "La Floresta", "Ciudad Salitre", "Chapinero", "La Castellana",
             "Belén", "La Soledad", "Normandía", "El Prado", "El Poblado", "Granada",
             "Los Ángeles", "El Campestre", "Bosque Popular", "Santa María", "Normandía"
-    };
-    private static final String[] MARCAS_VEHICULO = {
-            "Renault", "Chevrolet", "Mazda", "Nissan", "Toyota", "Kia", "Hyundai",
-            "Volkswagen", "Ford", "Suzuki", "Mitsubishi", "Peugeot", "Fiat", "Honda"
     };
 
     private final String departamento;
@@ -122,6 +119,8 @@ public class FillCasoExpressFormInOrder implements Interaction {
 
     private <T extends Actor> void llenarDatosBasicosEnOrden(T actor) throws Exception {
         String numeroExpediente = generarNumeroExpediente15();
+        // Guardamos el expediente generado para reutilizarlo más adelante (búsqueda tras re-login).
+        ExpedienteContext.setExpediente(numeroExpediente);
         String nombreSolicitante = generarNombreSolicitanteReal();
         String cedulaSolicitante = randomDigitos(10);
         String telefono1 = "3" + randomDigitos(9);
@@ -580,14 +579,15 @@ public class FillCasoExpressFormInOrder implements Interaction {
         String direccionDestino = generarDireccionColombiana(false);
         String detalleDireccionServicio = "Barrio " + BARRIOS[RANDOM.nextInt(BARRIOS.length)] + ", Torre " + (char) ('A' + RANDOM.nextInt(6));
         String detalleDireccionDestino = "Barrio " + BARRIOS[RANDOM.nextInt(BARRIOS.length)] + ", Apt. " + (1 + RANDOM.nextInt(90));
-        String marcaVehiculo = MARCAS_VEHICULO[RANDOM.nextInt(MARCAS_VEHICULO.length)];
 
         // Bloque de direcciones respetando la vista del formulario.
         llenarCampo(actor, CasoCreatePage.Direccion_Servicio, direccionServicio);
         llenarCampo(actor, CasoCreatePage.Direccion_Destino, direccionDestino);
         llenarCampo(actor, CasoCreatePage.Detalle_Direccion_Destino, detalleDireccionDestino);
         llenarCampo(actor, CasoCreatePage.Detalle_Direccion_Servicio, detalleDireccionServicio);
-        llenarCampo(actor, CasoCreatePage.Marca_Vehiculo, marcaVehiculo);
+        // NO llenamos "Marca de vehículo": al diligenciarla se habilita el campo requerido
+        // 'data[clase_vehiculo]', que quedaría vacío y bloquearía el guardado. Marca es opcional,
+        // así que se omite para no disparar esa dependencia.
         llenarCampo(actor, CasoCreatePage.Ubicacion_Servicio, UBICACION_SERVICIO_DEFAULT);
     }
 
@@ -660,11 +660,35 @@ public class FillCasoExpressFormInOrder implements Interaction {
     }
 
     private <T extends Actor> void llenarCampo(T actor, Target target, String valor) {
-        // Reingresar al iframe antes de interactuar con el campo.
-        ensureIframeContext(actor);
-        actor.attemptsTo(Scroll.to(target));
-        actor.attemptsTo(WaitUntil.the(target, isVisible()).forNoMoreThan(20).seconds());
-        actor.attemptsTo(Enter.theValue(valor).into(target));
+        // Form.io re-renderiza el formulario tras seleccionar combos condicionales
+        // (p.ej. municipio). Esto provoca que un campo pase la verificacion isVisible
+        // pero desaparezca (NoSuchElement) o quede stale justo antes de escribir.
+        // Reintentamos todo el ciclo localizar+escribir para tolerar ese re-render.
+        int maxIntentos = 3;
+        for (int intento = 1; intento <= maxIntentos; intento++) {
+            // Reingresar al iframe antes de interactuar con el campo.
+            ensureIframeContext(actor);
+            try {
+                actor.attemptsTo(Scroll.to(target));
+                actor.attemptsTo(WaitUntil.the(target, isVisible()).forNoMoreThan(20).seconds());
+                actor.attemptsTo(Enter.theValue(valor).into(target));
+                return;
+            } catch (org.openqa.selenium.NoSuchElementException
+                    | org.openqa.selenium.StaleElementReferenceException e) {
+                System.out.println("  [llenarCampo] Campo '" + target + "' no disponible (intento "
+                        + intento + "/" + maxIntentos + "): el formulario pudo re-renderizarse. "
+                        + e.getMessage());
+                if (intento == maxIntentos) {
+                    throw e;
+                }
+                try {
+                    // Dar tiempo a que Form.io termine de reconstruir el campo.
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
     }
 
     private <T extends Actor> void ensureIframeContext(T actor) {
