@@ -109,20 +109,25 @@ $testStats = $uniqueTestExecutions | ForEach-Object {
     $steps = $_.Group
     $batch = ($steps | Select-Object -First 1).Batch
     
-    # IMPORTANTE: El estado del test se determina por si hay ERRORES, no por el campo Estado (que siempre está vacío)
-    $tieneError = ($steps | Where-Object { $_."Error Type" -eq "ERROR" }).Count -gt 0
+    # El test FALLÓ si algún paso tiene "Error Type" con valor (el report_clean solo llena esa
+    # columna en pasos con fallo, con categoría Selenium/UI/Data/Validacion/Otros).
+    # NOTA: antes se comparaba con el literal "ERROR", que NUNCA aparece en ese CSV -> contaba
+    # todo como PASSED. Ahora se detecta por "Error Type" no vacío.
+    $pasosConError = $steps | Where-Object { $_."Error Type" -and ([string]$_."Error Type").Trim() -ne "" }
+    $tieneError = @($pasosConError).Count -gt 0
     $estado = if ($tieneError) { "FAILED" } else { "PASSED" }
-    
-    # Para error type y message, tomar del primer error si existe
-    $primerError = $steps | Where-Object { $_."Error Type" -eq "ERROR" } | Select-Object -First 1
+
+    # Error type, message y origen (archivo:linea) del primer paso con error
+    $primerError = $pasosConError | Select-Object -First 1
     $errorType = if ($primerError) { $primerError."Error Type" } else { "" }
     $errorMsg = if ($primerError) { $primerError."Error Message" } else { "" }
-    
+    $errorSource = if ($primerError) { $primerError."Origen Error" } else { "" }
+
     $totalPasos = $steps.Count
     $pasosLentos = ($steps | Where-Object { $_."Tiempo (ms)" -gt 5000 }).Count
     $tiempoTotalMs = ($steps | Measure-Object -Property "Tiempo (ms)" -Sum).Sum
     $tiempoTotalMin = [math]::Round($tiempoTotalMs / 60000, 2)
-    
+
     [PSCustomObject]@{
         "Test" = $testName
         "Batch" = $batch
@@ -134,6 +139,7 @@ $testStats = $uniqueTestExecutions | ForEach-Object {
         "Estado" = $estado
         "Error Type" = $errorType
         "Error Message" = $errorMsg
+        "Origen Error" = $errorSource
     }
 }
 

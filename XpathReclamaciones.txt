@@ -1,0 +1,361 @@
+<div ref="component" class="formio-component formio-component-form  formio-component-label-hidden" id="errk7x">
+  
+  
+
+
+
+<div novalidate="" ref="webform" class="formio-form"><div ref="component" class="formio-component formio-component-panel formio-component-solicitudes_reclamacion" id="ei3sjuq">
+  
+  <div class="mb-2 card border">
+  
+  <div ref="header" aria-controls="ei3sjuq-solicitudes_reclamacion" aria-expanded="true" role="button" tabindex="0" class="card-header bg-primary">
+    <span class="mb-0 card-title text-light">
+      
+        <i data-title="Collapse Panel" class="formio-collapse-icon fa fa-minus-square-o text-muted"></i>
+      
+      
+      Solicitudes de reclamación
+      
+      
+    </span>
+  </div>
+  
+  
+  <div id="ei3sjuq-solicitudes_reclamacion" ref="nested-solicitudes_reclamacion" class="card-body">
+    <div ref="component" class="formio-component formio-component-styleComponent formio-component-estilosAsteriscoRojo" id="eyrss6i">
+  
+  <style ref="eyrss6i">label.field-required::after,<br>.form-group.required > label::after,<br>.campo-obligatorio > label::after {<br>  content: ' *' !important;<br>  color: #dc3545 !important;<br>}</style>
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="row formio-component formio-component-columns formio-component-columns  formio-component-label-hidden" id="eto0c5b">
+  
+  
+
+
+
+
+<div ref="column-eto0c5b" class="col-md-6
+    col-md-offset-0
+    col-md-push-0
+    col-md-pull-0">
+  <div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-nombre campo-obligatorio" id="e3jfskn">
+  
+  
+  <label id="l-e3jfskn-nombre" for="e3jfskn-nombre" class="col-form-label" ref="label">
+  Nombre
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-e3jfskn-nombre" id="e3jfskn-nombre" value="" spellcheck="true" lang="en" class="form-control" type="text" name="data[nombre]" ref="input" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-placa campo-obligatorio" id="erypgic">
+  
+  
+  <label id="l-erypgic-placa" for="erypgic-placa" class="col-form-label" ref="label">
+  Placa
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-erypgic-placa" id="erypgic-placa" value="" spellcheck="true" lang="en" class="form-control" type="text" name="data[placa]" ref="input" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-medio_de_contacto campo-obligatorio" id="e9tasns">
+  
+  
+  <label id="l-e9tasns-medio_de_contacto" for="e9tasns-medio_de_contacto" class="col-form-label" ref="label">
+  Medio de Contacto
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-e9tasns-medio_de_contacto" id="e9tasns-medio_de_contacto" value="" spellcheck="true" lang="en" class="form-control" type="text" name="data[medio_de_contacto]" ref="input" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="formio-component formio-component-panel formio-component-aumentar_reiteratividad_panel" id="e6jyio">
+  
+  <div class="mb-2 card border">
+  
+  <div ref="header" aria-controls="e6jyio-aumentar_reiteratividad_panel" aria-expanded="false" role="button" tabindex="0" class="card-header bg-default">
+    <span class="mb-0 card-title">
+      
+        <i data-title="Collapse Panel" class="formio-collapse-icon fa fa-plus-square-o text-muted"></i>
+      
+      
+      Aumentar Reiteratividad
+      
+      
+    </span>
+  </div>
+  
+  
+</div>
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+
+
+</div>
+
+<div ref="column-eto0c5b" class="col-md-6
+    col-md-offset-0
+    col-md-push-0
+    col-md-pull-0">
+  <div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-siniestro_cedula_c campo-obligatorio" id="e03ujym">
+  
+  
+  <label id="l-e03ujym-siniestro_cedula_c" for="e03ujym-siniestro_cedula_c" class="col-form-label" ref="label">
+  Siniestro/Cédula
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-e03ujym-siniestro_cedula_c" id="e03ujym-siniestro_cedula_c" value="" spellcheck="true" lang="en" class="form-control" type="text" name="data[siniestro_cedula_c]" ref="input" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-telefono campo-obligatorio" id="eh0cjbq">
+  
+  
+  <label id="l-eh0cjbq-telefono" for="eh0cjbq-telefono" class="col-form-label" ref="label">
+  Teléfono
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-eh0cjbq-telefono" id="eh0cjbq-telefono" value="" spellcheck="true" lang="en" class="form-control" type="text" name="data[telefono]" ref="input" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-kace_number formio-component-reiteratividad" id="ekmd40e">
+  
+  
+  <label id="l-ekmd40e-reiteratividad" for="ekmd40e-reiteratividad" class="col-form-label" ref="label">
+  Reiteratividad
+  
+  
+</label>
+
+
+
+
+
+<div ref="element">
+          
+  
+  
+    <input aria-required="false" aria-labelledby="l-ekmd40e-reiteratividad" id="ekmd40e-reiteratividad" value="0" inputmode="decimal" disabled="disabled" lang="en" class="form-control" type="text" name="data[reiteratividad]" ref="input" pattern="[0-9.]*" aria-invalid="false">
+    
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-kace_text_field formio-component-motivo_de_contacto  formio-component-label-hidden formio-hidden" id="e0cwr1g">
+  
+</div>
+
+
+</div>
+
+
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-editgrid formio-component-historico_contexto_de_la_solicitud  formio-component-label-hidden" id="ecloczc">
+  
+  
+
+
+
+<ul class="editgrid-listgroup list-group">
+  
+  <li class="list-group-item list-group-header">
+    
+  
+    
+      
+        Contexto de la Solicitud
+      
+    
+  
+
+  </li>
+  
+  
+  
+</ul>
+
+<button ref="editgrid-historico_contexto_de_la_solicitud-addRow" class="btn btn-primary">
+  <i class="fa fa-plus"></i> Agregar contexto
+</button>
+
+
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+
+
+
+
+<div ref="component" class="form-group has-feedback formio-component formio-component-editgrid formio-component-gestion_reclamacion  formio-hidden" id="e7u89ns">
+  
+</div>
+
+
+
+
+
+
+
+  </div>
+  
+</div>
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>
+<div ref="component" class="form-group has-feedback formio-component formio-component-datamap formio-component-gestion_reclamacion_detail  formio-component-label-hidden formio-hidden" id="erg6typ">
+  
+</div>
+
+
+</div>
+
+
+
+
+
+  <div class="formio-errors invalid-feedback" ref="messageContainer"></div>
+  
+</div>

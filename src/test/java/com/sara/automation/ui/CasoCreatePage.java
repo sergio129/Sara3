@@ -28,6 +28,10 @@ public class CasoCreatePage {
     public static final Target Formulario_Creacion_ASISTENCIA = Target.the("Formulario Creación de Casos (ASISTENCIA)")
             .located(By.xpath("//div[.//span[normalize-space(text())='Formulario Creación de Casos (ASISTENCIA)'] and @role='menuitem']"));
 
+    // Item de menú para el flujo de RECLAMACIONES
+    public static final Target Formulario_Creacion_RECLAMACIONES = Target.the("Formulario Creación de Casos (RECLAMACIONES)")
+            .located(By.xpath("//div[@role='menuitem'][.//span[contains(normalize-space(.),'RECLAMACIONES')]]"));
+
     // Boton que aparece en la pantalla de creación/edición para habilitar el formulario (dentro del panel card-body)
     // Usa CSS selector para evitar problemas con corchetes en XPath
     public static final Target Habilitar_Formulario = Target.the("Boton Habilitar Formulario")

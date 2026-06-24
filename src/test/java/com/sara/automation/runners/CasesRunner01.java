@@ -13,5 +13,5 @@ import org.junit.runner.RunWith;
 )
 public class CasesRunner01 {
     // Los usuarios se asignan ALEATORIAMENTE desde UserPoolManager
-    // No es necesario establecer propiedades del sistema
+    // Asignacion intercalada: runner01 -> escenario @batch1
 }

@@ -45,6 +45,14 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: ============================================================
+:: AUTO-DETECTAR CUANTOS RUNNERS EXISTEN (CasesRunner*.java)
+:: Asi el menu y las validaciones se adaptan solos al crear nuevos runners.
+:: ============================================================
+set "RUNNER_COUNT=0"
+for %%f in ("src\test\java\com\sara\automation\runners\CasesRunner*.java") do set /a RUNNER_COUNT+=1
+if "%RUNNER_COUNT%"=="0" set "RUNNER_COUNT=51"
+
 :menu
 cls
 echo.
@@ -90,7 +98,7 @@ if "%choice%"=="16" goto end
 goto menu
 
 :custom_runners
-set /p FORKS="Numero de runners (1-50): "
+set /p FORKS="Numero de runners (1-%RUNNER_COUNT%): "
 powershell -Command "(Get-Content gradle.properties) -replace '^maxParallelForks=.*', 'maxParallelForks=%FORKS%' | Set-Content gradle.properties"
 call .\gradlew.bat test --parallel
 echo.
@@ -202,7 +210,7 @@ pause
 goto menu
 
 :run_one
-set /p runner="Numero del runner (1-50): "
+set /p runner="Numero del runner (1-%RUNNER_COUNT%): "
 
 :: Agregar cero a la izquierda si es menor a 10
 if %runner% LSS 10 (
@@ -306,7 +314,7 @@ echo ========================================================
 echo    EJECUTAR 1 SCENARIO SIN PARALELO
 echo ========================================================
 echo.
-set /p batch_num="Numero del scenario (1-50): "
+set /p batch_num="Numero del scenario (1-%RUNNER_COUNT%): "
 
 if "%batch_num%"=="" (
     echo ERROR: Debes ingresar un numero
@@ -321,8 +329,8 @@ if %batch_num% LSS 10 (
     set "batch_num_formatted=%batch_num%"
 )
 
-:: Validar que sea un numero entre 1 y 50
-for /l %%i in (1,1,50) do (
+:: Validar que sea un numero entre 1 y la cantidad de runners detectada
+for /l %%i in (1,1,%RUNNER_COUNT%) do (
     if "%batch_num%"=="%%i" (
         powershell -Command "(Get-Content gradle.properties) -replace '^maxParallelForks=.*', 'maxParallelForks=1' | Set-Content gradle.properties"
         echo.
@@ -347,7 +355,7 @@ for /l %%i in (1,1,50) do (
     )
 )
 
-echo ERROR: Numero invalido. Ingresa un numero entre 1 y 50
+echo ERROR: Numero invalido. Ingresa un numero entre 1 y %RUNNER_COUNT%
 pause
 goto menu
 
@@ -399,11 +407,11 @@ echo ================================================
 echo   CONSOLIDAR REPORTES DE MULTIPLES MAQUINAS
 echo ================================================
 echo.
-echo Este proceso consolidara todos los archivos CSV
+echo Este proceso consolidara todos los archivos XLSX
 echo de diferentes maquinas en un solo reporte unificado.
 echo.
 echo INSTRUCCIONES:
-echo   1. Copia los archivos step_details_*.csv de cada
+echo   1. Copia los archivos step_details_*.xlsx de cada
 echo      maquina a la carpeta: reports_consolidation\
 echo   2. Presiona cualquier tecla para continuar
 echo.

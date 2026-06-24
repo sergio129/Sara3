@@ -2,8 +2,10 @@ package com.sara.automation.stepdefinitions;
 
 import com.sara.automation.tasks.BuscarExpediente;
 import com.sara.automation.tasks.ClickCasoExpress;
+import com.sara.automation.tasks.CrearCasoReclamaciones;
 import com.sara.automation.tasks.DiligenciarProveedorGestion;
 import com.sara.automation.tasks.GestionConceptosProveedor;
+import com.sara.automation.tasks.GestionarReclamacion;
 import com.sara.automation.tasks.GoToAgentPage;
 import com.sara.automation.tasks.LoginWithCognito;
 import com.sara.automation.tasks.LogoutFromUserMenu;
@@ -255,6 +257,18 @@ public class CasesStepDefinitions {
     public void buscamosElExpedienteGuardadoYAbrimosSuEdicion() {
         // Búsqueda avanzada -> filtra por el expediente guardado -> abre su edición.
         actor.attemptsTo(BuscarExpediente.now());
+    }
+
+    @When("creamos un caso de reclamaciones")
+    public void creamosUnCasoDeReclamaciones() {
+        // Flujo independiente: Caso Express -> Formulario RECLAMACIONES -> diligenciar + contexto + guardar.
+        actor.attemptsTo(CrearCasoReclamaciones.now());
+    }
+
+    @When("gestionamos la reclamacion")
+    public void gestionamosLaReclamacion() {
+        // Tras la recarga a "Detalles del caso": clic en Gestionar -> tipo/persona/observacion/estado=GESTIONADO -> guardar.
+        actor.attemptsTo(GestionarReclamacion.now());
     }
 
     @When("gestionamos los conceptos del proveedor")

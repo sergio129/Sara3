@@ -178,3 +178,92 @@ Feature: Creacion de Expedientes en el sistema de gestion de casos
     And reingresamos como el proveedor asignado
     And buscamos el expediente guardado y abrimos su edicion
     And gestionamos los conceptos del proveedor
+  @batch11
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 51
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch12
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 52
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch13
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 53
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch14
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 54
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch15
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 55
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch16
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 56
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch17
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 57
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch18
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 58
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch19
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 59
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion
+
+  @batch20
+  Scenario: Reclamaciones - Creacion de caso de reclamacion 60
+    Given el actor tiene un navegador disponible
+    When abre la pagina de casos
+    And realiza login con credenciales
+    And navega a agent
+    And creamos un caso de reclamaciones
+    And gestionamos la reclamacion

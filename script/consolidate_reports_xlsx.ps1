@@ -35,7 +35,10 @@ if (-not (Test-Path $outputFolder)) {
 function Read-XlsxSheetSimple {
     param(
         [string]$XlsxPath,
-        [string]$SheetName = "Todos los Pasos"
+        [string]$SheetName = "Todos los Pasos",
+        # Si se indica, solo construye filas donde la columna "EsError" = "SI".
+        # Evita materializar cientos de miles de objetos solo para descartarlos despues.
+        [switch]$OnlyErrors
     )
     
     [System.Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem') | Out-Null
@@ -97,41 +100,50 @@ function Read-XlsxSheetSimple {
             return @()
         }
         
-        # Leer sheet (NO buscamos sharedStrings, los valores están directamente en las celdas)
-        [xml]$sheetXml = Get-Content $sheetPath -Encoding UTF8
-        
-        # Procesar filas
-        $result = @()
-        $headers = @()
-        $rowNum = 0
-        
-        foreach ($row in $sheetXml.worksheet.sheetData.row) {
-            $rowNum++
-            $rowData = @()
-            
-            foreach ($cell in $row.c) {
-                # Los valores están directamente en $cell.v
-                $cellValue = $cell.v
-                $rowData += @($cellValue)
-            }
-            
-            if ($rowNum -eq 1) {
-                # Primera fila = headers
-                $headers = $rowData
-            } else {
-                # Crear objeto
-                $obj = [PSCustomObject]@{}
-                for ($i = 0; $i -lt $headers.Count; $i++) {
-                    if ($i -lt $rowData.Count) {
-                        $obj | Add-Member -NotePropertyName $headers[$i] -NotePropertyValue $rowData[$i]
+        # Leer la hoja con XmlReader en STREAMING (no carga el DOM completo). Las hojas grandes
+        # ("Log Consola", ~15MB) con [xml] tardaban minutos por archivo; en streaming son segundos.
+        # Estructura de celda: <c ...><is><t>VALOR</t></is></c>  (o el viejo t="str" con <v>).
+        $result = [System.Collections.Generic.List[object]]::new()
+        $headers = $null
+        $esErrorIdx = -1   # indice de la columna "EsError" (para el filtro -OnlyErrors)
+        $rowData = [System.Collections.Generic.List[object]]::new()
+
+        $xrSettings = New-Object System.Xml.XmlReaderSettings
+        $xrSettings.IgnoreWhitespace = $true
+        $xrSettings.IgnoreComments = $true
+        $reader = [System.Xml.XmlReader]::Create($sheetPath, $xrSettings)
+        try {
+            while ($reader.Read()) {
+                if ($reader.NodeType -eq [System.Xml.XmlNodeType]::Element) {
+                    switch ($reader.LocalName) {
+                        'row' { $rowData = [System.Collections.Generic.List[object]]::new() }
+                        't'   { [void]$rowData.Add($reader.ReadElementContentAsString()) }  # inlineStr <is><t>
+                        'v'   { [void]$rowData.Add($reader.ReadElementContentAsString()) }  # <v> (formato viejo)
+                    }
+                } elseif ($reader.NodeType -eq [System.Xml.XmlNodeType]::EndElement -and $reader.LocalName -eq 'row') {
+                    if ($null -eq $headers) {
+                        # Primera fila = headers
+                        $headers = $rowData
+                        if ($OnlyErrors) { $esErrorIdx = $headers.IndexOf("EsError") }
                     } else {
-                        $obj | Add-Member -NotePropertyName $headers[$i] -NotePropertyValue $null
+                        # Con -OnlyErrors: descarta filas no-error ANTES de construir el objeto.
+                        if ($OnlyErrors -and $esErrorIdx -ge 0) {
+                            $ev = if ($esErrorIdx -lt $rowData.Count) { [string]$rowData[$esErrorIdx] } else { "" }
+                            if ($ev -ne "SI") { continue }
+                        }
+                        # Hashtable ordenado + un solo cast a PSCustomObject (Add-Member por celda era lentisimo).
+                        $h = [ordered]@{}
+                        for ($i = 0; $i -lt $headers.Count; $i++) {
+                            $h[[string]$headers[$i]] = if ($i -lt $rowData.Count) { $rowData[$i] } else { $null }
+                        }
+                        [void]$result.Add([PSCustomObject]$h)
                     }
                 }
-                $result += @($obj)
             }
+        } finally {
+            $reader.Close()
         }
-        
+
         return $result
         
     } catch {
@@ -172,14 +184,42 @@ Write-Host ""
 # ============================================
 Write-Host "[INFO] Procesando archivos XLSX..." -ForegroundColor Cyan
 
-$allSteps = @()
+# Listas .NET (Add O(1)) en vez de arrays con '+=' (O(n^2)): con 50 step_details y decenas de
+# miles de lineas de log, el '+=' por linea hacia el consolidado lentisimo/colgado.
+$allSteps = [System.Collections.Generic.List[object]]::new()
+# Lineas de log de consola (una por fila) acumuladas de todos los step_details, para el consolidado.
+$allLogLines = [System.Collections.Generic.List[object]]::new()
 
 foreach ($file in $xlsxFiles) {
     Write-Host "  Leyendo: $($file.Name)..." -ForegroundColor White
-    
+
     try {
         # Leer hoja "Todos los Pasos" del XLSX
         $xlsxData = Read-XlsxSheetSimple -XlsxPath $file.FullName -SheetName "Todos los Pasos"
+
+        # Leer la hoja "Log Consola" (una linea por fila) y acumularla para el consolidado.
+        try {
+            $logData = Read-XlsxSheetSimple -XlsxPath $file.FullName -SheetName "Log Consola" -OnlyErrors
+            foreach ($lr in $logData) {
+                if ($lr.PSObject.Properties.Name -notcontains "Linea") { continue }
+                $esErr = if ($lr.PSObject.Properties.Name -contains "EsError") { $lr.EsError } else { "" }
+                # CONSOLIDADO: SOLO lineas de error. El log completo queda en cada step_details por
+                # maquina; consolidar TODO (millones de filas) supera el limite de Excel y es inutil.
+                if ($esErr -ne "SI") { continue }
+                [void]$allLogLines.Add([PSCustomObject]@{
+                        Test    = $lr.Test
+                        Batch   = $lr.Batch
+                        Maquina = $lr.Maquina
+                        Usuario = $lr.Usuario
+                        Nro     = $lr.Nro
+                        EsError = $esErr
+                        Linea   = $lr.Linea
+                        "Archivo Origen" = $file.Name
+                    })
+            }
+        } catch {
+            Write-Host "    [WARN] No se pudo leer 'Log Consola' de $($file.Name): $_" -ForegroundColor Yellow
+        }
         
         if ($xlsxData.Count -eq 0) {
             Write-Host "    ADVERTENCIA: Sin datos o hoja no encontrada" -ForegroundColor Yellow
@@ -197,7 +237,7 @@ foreach ($file in $xlsxFiles) {
             [PSCustomObject]$propHash
         })
         
-        $allSteps += $xlsxDataWithOrigin
+        if ($xlsxDataWithOrigin) { $allSteps.AddRange([object[]]@($xlsxDataWithOrigin)) }
         Write-Host "    OK: $($xlsxData.Count) pasos cargados" -ForegroundColor Green
         
     } catch {
@@ -451,7 +491,8 @@ try {
                 "Origen Error" = $_."Origen Error"
             }
         })
-        $pasosParaMostrar | Export-Excel -Path $excelPath -WorksheetName "Detalles Paso a Paso" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
+        # Sin -AutoSize: en hojas grandes Export-Excel mide cada celda y se vuelve lentisimo.
+        $pasosParaMostrar | Export-Excel -Path $excelPath -WorksheetName "Detalles Paso a Paso" -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 5: Detalles Paso a Paso ($($allSteps.Count) pasos)" -ForegroundColor Green
     }
     
@@ -518,7 +559,14 @@ try {
         $slowStepsWithMin | Export-Excel -Path $excelPath -WorksheetName "Pasos Lentos" -AutoSize -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
         Write-Host "  OK Hoja 8: Pasos Lentos ($($slowSteps.Count) pasos)" -ForegroundColor Green
     }
-    
+
+    # Hoja 9: Log Consola (una linea por fila, de todas las maquinas) - filtrable/buscable
+    if (@($allLogLines).Count -gt 0) {
+        # Sin -AutoSize: es la hoja mas grande (decenas de miles de filas); -AutoSize la colgaba.
+        @($allLogLines) | Export-Excel -Path $excelPath -WorksheetName "Log Consola" -TableStyle "Light1" -AutoFilter -FreezeTopRow -Append
+        Write-Host "  OK Hoja 9: Log Consola ($(@($allLogLines).Count) lineas)" -ForegroundColor Green
+    }
+
     $excelFileInfo = Get-Item $excelPath
     $excelSizeMB = [math]::Round($excelFileInfo.Length / 1MB, 2)
     Write-Host "  - Excel generado: $excelPath ($excelSizeMB MB)" -ForegroundColor Green

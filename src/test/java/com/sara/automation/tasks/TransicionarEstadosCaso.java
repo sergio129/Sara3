@@ -157,21 +157,7 @@ public class TransicionarEstadosCaso implements Task {
                 // Buscar "Aceptado y en desplazamiento" O "Aceptado" simple
                 try {
                     wait.until(org.openqa.selenium.support.ui.ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("form_onescript_iframe")));
-                    
-                    // DEBUG: Listar TODOS los botones disponibles
-                    System.out.println("  [TransicionarEstadosCaso]   DEBUG: Botones disponibles en el formulario:");
-                    java.util.List<WebElement> todosBotones = driver.findElements(By.xpath("//button"));
-                    for (WebElement boton : todosBotones) {
-                        try {
-                            String textoBoton = boton.getText().trim();
-                            if (!textoBoton.isEmpty() && boton.isDisplayed()) {
-                                System.out.println("  [TransicionarEstadosCaso]     - '" + textoBoton + "'");
-                            }
-                        } catch (Exception e) {
-                            // Ignorar botones que no se puedan leer
-                        }
-                    }
-                    
+
                     try {
                         wait.until(org.openqa.selenium.support.ui.ExpectedConditions.presenceOfElementLocated(
                             By.xpath("//button[contains(normalize-space(.), 'Aceptado') and contains(normalize-space(.), 'desplazamiento')]") ));
@@ -216,21 +202,7 @@ public class TransicionarEstadosCaso implements Task {
                 // Buscar otros estados (Concluido, Finalizado, etc)
                 try {
                     wait.until(org.openqa.selenium.support.ui.ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("form_onescript_iframe")));
-                    
-                    // DEBUG: Listar TODOS los botones disponibles
-                    System.out.println("  [TransicionarEstadosCaso]   DEBUG: Buscando '" + estadoEsperado + "' - Botones disponibles en el formulario:");
-                    java.util.List<WebElement> todosBotones = driver.findElements(By.xpath("//button"));
-                    for (WebElement boton : todosBotones) {
-                        try {
-                            String textoBoton = boton.getText().trim();
-                            if (!textoBoton.isEmpty() && boton.isDisplayed()) {
-                                System.out.println("  [TransicionarEstadosCaso]     - '" + textoBoton + "'");
-                            }
-                        } catch (Exception e) {
-                            // Ignorar botones que no se puedan leer
-                        }
-                    }
-                    
+
                     try {
                         wait.until(org.openqa.selenium.support.ui.ExpectedConditions.presenceOfElementLocated(
                             By.xpath("//button[contains(normalize-space(.), '" + estadoEsperado + "')]")));

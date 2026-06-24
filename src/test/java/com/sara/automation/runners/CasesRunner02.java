@@ -8,10 +8,10 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
         features = "src/test/resources/features/cases/open_cases.feature",
         glue = "com.sara.automation.stepdefinitions",
-        tags = "@batch2",
+        tags = "@batch11",
         snippets = CucumberOptions.SnippetType.UNDERSCORE
 )
 public class CasesRunner02 {
     // Los usuarios se asignan ALEATORIAMENTE desde UserPoolManager
-    // No es necesario establecer propiedades del sistema
+    // Asignacion intercalada: runner02 -> escenario @batch11
 }
