@@ -11,14 +11,19 @@
 # STAGE 1: JDK (solo para copiar el JDK al runtime, sin apt)
 FROM eclipse-temurin:11-jdk-jammy AS jdk-source
 
-# STAGE 2: Builder - compila y resuelve dependencias de Gradle (solo necesita JDK)
+# STAGE 2: Builder - DESCARGA Gradle + todas las dependencias y compila.
+# Requiere internet SOLO en build-time. El resultado queda en /root/.gradle y
+# se copia al runtime para que el SERVIDOR no tenga que descargar nada.
 FROM eclipse-temurin:11-jdk-jammy AS builder
 WORKDIR /app
+ENV GRADLE_USER_HOME=/root/.gradle
 COPY . .
-# Normalizar a LF (por si llega algún CRLF) y precargar dependencias
+# Normalizar a LF y compilar tests: baja la distribución de Gradle + dependencias.
+# (Sin '|| true': si aquí no hay internet, el build falla claramente; hay que
+#  construir en una máquina/red con acceso a services.gradle.org y Maven Central.)
 RUN sed -i 's/\r$//' gradlew *.sh 2>/dev/null || true; \
     chmod +x gradlew *.sh && \
-    ./gradlew --version && ./gradlew dependencies --write-locks 2>&1 || true
+    ./gradlew --no-daemon compileTestJava
 
 # STAGE 3: PowerShell (para generar el reporte CSV/Excel/HTML, sin apt)
 FROM mcr.microsoft.com/powershell:latest AS pwsh-source
@@ -44,8 +49,12 @@ RUN PWSH_BIN="$(find /opt/microsoft/powershell -maxdepth 2 -name pwsh -type f | 
     ln -sf "$PWSH_BIN" /usr/bin/pwsh && \
     (pwsh --version || echo "AVISO: pwsh no inició; el reporte CSV/Excel quedaría degradado")
 
-# --- App (desde el builder) ---
+# --- App + caché de Gradle (desde el builder) ---
+# /root/.gradle trae la distribución de Gradle y TODAS las dependencias ya
+# descargadas, para que el server NO necesite internet a Gradle/Maven en runtime.
 COPY --from=builder /app /app
+COPY --from=builder /root/.gradle /root/.gradle
+ENV GRADLE_USER_HOME=/root/.gradle
 
 # --- Scripts de entrada y menú ---
 COPY docker-entrypoint.sh /usr/local/bin/
