@@ -23,6 +23,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Usa la red del host durante el build: el contenedor de build hereda el
+      # DNS/red del servidor (que SÍ resuelve Maven). Sin esto, el build da
+      # "Temporary failure in name resolution".
+      network: host
     image: sara3:latest
     container_name: sara3-tests
 
