@@ -34,16 +34,25 @@ run_tests() {
     fi
     TEST_RESULT=$?
     set -e
-    
+
     echo ""
     if [ $TEST_RESULT -eq 0 ]; then
         echo -e "${GREEN}✓ TESTS COMPLETADOS${NC}"
     else
         echo -e "${YELLOW}⚠ Tests completados con algunos errores (Exit: $TEST_RESULT)${NC}"
     fi
-    
+
+    # Generar reportes CSV/Excel/HTML (requiere PowerShell, instalado en la imagen)
+    if [ -f "script/generate_step_details_excel_report_CLEAN.ps1" ] && command -v pwsh &> /dev/null; then
+        echo ""
+        echo -e "${BLUE}[INFO] Generando reportes CSV/Excel/HTML...${NC}"
+        pwsh -ExecutionPolicy Bypass -File "script/generate_step_details_excel_report_CLEAN.ps1" || \
+            echo -e "${YELLOW}[WARN] La generación de reportes terminó con advertencias${NC}"
+    fi
+
     echo ""
-    echo -e "${CYAN}[INFO] Reporte disponible en: target/site/serenity/index.html${NC}"
+    echo -e "${CYAN}[INFO] Reporte Serenity: target/site/serenity/index.html${NC}"
+    echo -e "${CYAN}[INFO] Reportes CSV/Excel/HTML: target/reports/${NC}"
     echo ""
     read -p "Presiona ENTER para continuar..."
 }

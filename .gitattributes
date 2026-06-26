@@ -1,0 +1,21 @@
+# Normalización de fin de línea
+# Por defecto: LF en el repo (evita que los .sh lleguen con CRLF al server Linux)
+* text=auto eol=lf
+
+# Scripts de shell SIEMPRE en LF (se ejecutan en Linux/Docker)
+*.sh   text eol=lf
+gradlew text eol=lf
+
+# Scripts de Windows en CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Binarios: sin conversión
+*.jar  binary
+*.war  binary
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.xlsx binary
+*.zip  binary

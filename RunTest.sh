@@ -14,6 +14,13 @@ REPORT_DIR="$SCRIPT_DIR/target/reports"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="$LOG_DIR/batch_test_${TIMESTAMP}.log"
 
+# Número de runners en paralelo (parametrizable). Default: 8
+RUNNERS="${RUNNERS:-8}"
+if ! [[ "$RUNNERS" =~ ^[0-9]+$ ]] || [ "$RUNNERS" -lt 1 ] || [ "$RUNNERS" -gt 50 ]; then
+    echo "ERROR: RUNNERS invalido ('$RUNNERS'). Debe ser un numero entre 1 y 50." >&2
+    exit 1
+fi
+
 # Colores
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -67,13 +74,13 @@ validate_environment() {
     CHROME_VERSION=$(chromium-browser --version 2>/dev/null || google-chrome --version 2>/dev/null)
     log_info "Chrome: $CHROME_VERSION"
     
-    # ChromeDriver
-    if ! command -v chromedriver &> /dev/null; then
-        log_error "ChromeDriver no encontrado"
-        exit 1
+    # ChromeDriver (opcional: Selenium Manager lo resuelve automáticamente si falta)
+    if command -v chromedriver &> /dev/null; then
+        CHROMEDRIVER_VERSION=$(chromedriver --version 2>/dev/null | cut -d' ' -f1-3)
+        log_info "ChromeDriver: $CHROMEDRIVER_VERSION"
+    else
+        log_warning "chromedriver no está en PATH; Selenium Manager lo descargará/resolverá en runtime"
     fi
-    CHROMEDRIVER_VERSION=$(chromedriver --version 2>/dev/null | cut -d' ' -f1-3)
-    log_info "ChromeDriver: $CHROMEDRIVER_VERSION"
     
     # Gradle
     if [ ! -f "$SCRIPT_DIR/gradlew" ]; then
@@ -115,17 +122,13 @@ setup_environment() {
 # ============================================================
 clean_previous_builds() {
     log_info "Limpiando builds anteriores..."
-    
-    if [ -d "$SCRIPT_DIR/build" ]; then
-        rm -rf "$SCRIPT_DIR/build"
-        log_info "Directorio build/ eliminado"
-    fi
-    
-    if [ -d "$SCRIPT_DIR/target" ]; then
-        rm -rf "$SCRIPT_DIR/target"
-        log_info "Directorio target/ eliminado"
-    fi
-    
+
+    # Borrar el CONTENIDO, no los directorios: target/ suele ser un bind-mount de Docker
+    # y eliminar el punto de montaje falla ("device busy") y aborta el script.
+    rm -rf "$SCRIPT_DIR/build"/* "$SCRIPT_DIR/build"/.[!.]* 2>/dev/null || true
+    rm -rf "$SCRIPT_DIR/target"/* "$SCRIPT_DIR/target"/.[!.]* 2>/dev/null || true
+    mkdir -p "$REPORT_DIR" "$SCRIPT_DIR/target/site"
+
     log_success "Limpieza completada"
 }
 
@@ -152,13 +155,13 @@ compile_project() {
 # CONFIGURAR PARALELO A 8
 # ============================================================
 configure_parallel() {
-    log_info "Configurando 8 runners en paralelo..."
-    
+    log_info "Configurando $RUNNERS runners en paralelo..."
+
     # Actualizar gradle.properties
     if grep -q "^maxParallelForks=" "$SCRIPT_DIR/gradle.properties"; then
-        sed -i 's/^maxParallelForks=.*/maxParallelForks=8/' "$SCRIPT_DIR/gradle.properties"
+        sed -i "s/^maxParallelForks=.*/maxParallelForks=$RUNNERS/" "$SCRIPT_DIR/gradle.properties"
     else
-        echo "maxParallelForks=8" >> "$SCRIPT_DIR/gradle.properties"
+        echo "maxParallelForks=$RUNNERS" >> "$SCRIPT_DIR/gradle.properties"
     fi
     
     PARALLEL_SETTING=$(grep "^maxParallelForks=" "$SCRIPT_DIR/gradle.properties")
@@ -171,7 +174,7 @@ configure_parallel() {
 # ============================================================
 run_tests() {
     log_info "================================"
-    log_info "EJECUTANDO 8 TESTS EN PARALELO"
+    log_info "EJECUTANDO $RUNNERS TESTS EN PARALELO"
     log_info "================================"
     
     cd "$SCRIPT_DIR"

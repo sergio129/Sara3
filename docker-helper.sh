@@ -46,30 +46,33 @@ build_image() {
 }
 
 run_batch_tests() {
-    echo -e "${BLUE}Ejecutando batch tests 8 paralelo...${NC}"
-    mkdir -p reports logs
-    
+    read -p "Numero de runners en paralelo [8]: " forks
+    forks=${forks:-8}
+    echo -e "${BLUE}Ejecutando $forks runners en paralelo...${NC}"
+    mkdir -p target logs
+
     docker run --rm \
-        -v $(pwd)/reports:/app/target/reports \
-        -v $(pwd)/logs:/app/logs \
-        sara3:latest \
-        batch_test_8p.sh
-    
+        --name "sara3-batch-$(date +%s)" \
+        -e RUNNERS="$forks" \
+        -v "$(pwd)/target:/app/target" \
+        -v "$(pwd)/logs:/app/logs" \
+        sara3:latest
+
     echo -e "${GREEN}✓ Tests completados${NC}"
     echo ""
     echo "Reportes disponibles en:"
-    ls -lh reports/ 2>/dev/null || echo "No reports found"
+    ls -lh target/reports/ 2>/dev/null || echo "No reports found"
 }
 
 run_interactive() {
     echo -e "${BLUE}Ejecutando menú interactivo...${NC}"
-    mkdir -p reports logs
-    
+    mkdir -p target logs
+
     docker run -it --rm \
-        -v $(pwd)/reports:/app/target/reports \
-        -v $(pwd)/logs:/app/logs \
-        sara3:latest \
-        ./run_tests.sh
+        --name "sara3-interactive-$(date +%s)" \
+        -v "$(pwd)/target:/app/target" \
+        -v "$(pwd)/logs:/app/logs" \
+        sara3:latest
 }
 
 run_single_test() {
@@ -81,15 +84,17 @@ run_single_test() {
     fi
     
     test_formatted=$(printf "%02d" "$test_num")
-    
+
     echo -e "${BLUE}Ejecutando test $test_num...${NC}"
-    mkdir -p reports
-    
+    mkdir -p target logs
+
     docker run --rm \
-        -v $(pwd)/reports:/app/target/reports \
+        --name "sara3-single-$(date +%s)" \
+        -v "$(pwd)/target:/app/target" \
+        -v "$(pwd)/logs:/app/logs" \
         sara3:latest \
         bash -c "./gradlew test --tests 'com.sara.automation.runners.CasesRunner$test_formatted'"
-    
+
     echo -e "${GREEN}✓ Test completado${NC}"
 }
 

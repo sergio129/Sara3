@@ -46,28 +46,30 @@ if ! ps -p $XVFB_PID > /dev/null 2>&1; then
 fi
 
 echo "🎬 DISPLAY configurado: $DISPLAY"
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║  🚀 MENU INTERACTIVO                                  ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
 
-# Verificar si se pasó un comando específico, sino mostrar menú
-if [ $# -eq 0 ]; then
-    # Modo interactivo - mostrar menú
+# ============================================================
+# SELECCIÓN DE MODO DE EJECUCIÓN (auto-detección)
+#   1. Comando explícito como argumento  -> se ejecuta tal cual
+#   2. Variable RUNNERS definida          -> modo desatendido (RunTest.sh)
+#   3. Terminal interactiva (TTY)         -> menú interactivo
+#   4. Sin TTY y sin RUNNERS              -> desatendido con default (8)
+# ============================================================
+if [ $# -gt 0 ]; then
+    echo "▶️  Modo comando directo: $@"
+    bash -c "$@"
+    EXIT_CODE=$?
+elif [ -n "$RUNNERS" ]; then
+    echo "🤖 Modo desatendido: RUNNERS=$RUNNERS"
+    RUNNERS="$RUNNERS" bash /app/RunTest.sh
+    EXIT_CODE=$?
+elif [ -t 0 ] && [ -t 1 ]; then
+    echo "🖥️  Modo interactivo: menú de selección"
     bash /app/docker-menu.sh
     EXIT_CODE=$?
 else
-    # Modo comando directo - ejecutar lo que se pasó como argumento
-    echo "Ejecutando comando: $@"
-    bash -c "$@"
+    echo "🤖 Sin terminal interactiva y sin RUNNERS → usando default RUNNERS=8"
+    RUNNERS=8 bash /app/RunTest.sh
     EXIT_CODE=$?
-    if [ $EXIT_CODE -ne 0 ]; then
-        echo ""
-        echo "⚠️ El comando falló con código $EXIT_CODE. Regresando al menú principal..."
-        echo ""
-        bash /app/docker-menu.sh
-        EXIT_CODE=$?
-    fi
 fi
 
 echo ""

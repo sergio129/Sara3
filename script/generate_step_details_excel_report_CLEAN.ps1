@@ -4,9 +4,10 @@
 # Genera Excel con COM API (funciona con Excel y LibreOffice)
 
 param(
-    [string]$serenityReportPath = ".\target\site\serenity",
-    [string]$junitPath = ".\build\test-results\test",
-    [string]$outputPath = ".\target\reports"
+    # Rutas con separador "/" para que funcionen en Windows y Linux (Docker)
+    [string]$serenityReportPath = "./target/site/serenity",
+    [string]$junitPath = "./build/test-results/test",
+    [string]$outputPath = "./target/reports"
 )
 
 # Crear directorio de salida
@@ -15,8 +16,13 @@ if (-not (Test-Path $outputPath)) {
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$machineName = $env:COMPUTERNAME
-$userName = $env:USERNAME
+# Compatibilidad Windows/Linux: COMPUTERNAME/USERNAME no existen en Linux (Docker)
+$machineName = if ($env:COMPUTERNAME) { $env:COMPUTERNAME }
+               elseif ($env:HOSTNAME) { $env:HOSTNAME }
+               else { try { [System.Net.Dns]::GetHostName() } catch { "container" } }
+$userName = if ($env:USERNAME) { $env:USERNAME }
+            elseif ($env:USER) { $env:USER }
+            else { "docker" }
 
 # ===== FUNCIONES UTILITARIAS =====
 
@@ -622,7 +628,7 @@ foreach ($jsonFile in $jsonFiles) {
 
 # ===== GENERAR CSV =====
 
-$csvPath = "$outputPath\step_details_$timestamp.csv"
+$csvPath = Join-Path $outputPath "step_details_$timestamp.csv"
 $csvLines = [System.Collections.Generic.List[object]]::new()
 $csvLines.Add('"Test","Batch","Maquina","Usuario","Descripcion","Accion","Elemento","Valor","Tiempo (ms)","Tiempo (s)","Tiempo (min)","Estado","Error Type","Error Message","Origen Error"')
 
@@ -659,7 +665,7 @@ Write-Host "CSV generado: $csvPath" -ForegroundColor Green
 
 # ===== GENERAR EXCEL CON COM =====
 
-$excelPath = "$outputPath\step_details_$timestamp.xlsx"
+$excelPath = Join-Path $outputPath "step_details_$timestamp.xlsx"
 $failedTests = ($testStats | Where-Object { $_.Estado -eq "FAILED" }).Count
 $passedTests = ($testStats | Where-Object { $_.Estado -eq "PASSED" }).Count
 
@@ -760,7 +766,7 @@ if ($excelSuccess) {
 
 # ===== GENERAR HTML PROFESIONAL =====
 
-$htmlPath = "$outputPath\step_details_$timestamp.html"
+$htmlPath = Join-Path $outputPath "step_details_$timestamp.html"
 
 $successCount = @($allSteps | Where-Object { $_.Estado -eq 'SUCCESS' }).Count
 $errorCount = @($allSteps | Where-Object { $_.EsFallo }).Count

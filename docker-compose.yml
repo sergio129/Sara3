@@ -1,144 +1,67 @@
-version: '3.8'
+# ============================================================
+# SARA3 - Automatización de pruebas en Docker
+# ------------------------------------------------------------
+# Uso:
+#   Interactivo (te pregunta cuántos runners, requiere terminal):
+#     docker compose run --rm sara3
+#
+#   Desatendido / servidor (sin menú, eliges runners por variable):
+#     RUNNERS=8  docker compose up sara3
+#     RUNNERS=12 docker compose run --rm sara3
+#
+#   Si no defines RUNNERS y no hay terminal, usa 8 por defecto.
+#
+# Reportes generados (montados en ./target del host):
+#   - target/site/serenity/index.html      (Serenity HTML)
+#   - target/reports/step_details_*.csv     (CSV)
+#   - target/reports/step_details_*.xlsx    (Excel)
+#   - target/reports/step_details_*.html    (Dashboard HTML)
+# ============================================================
 
 services:
-  # ============================================================
-  # SARA3 - Batch Tests 8 Paralelo
-  # ============================================================
-  sara3-batch:
+  sara3:
     build:
       context: .
       dockerfile: Dockerfile
     image: sara3:latest
-    container_name: sara3-batch-tests
-    
-    # Variables de entorno
-    environment:
-      DISPLAY: ""
-      QT_QPA_PLATFORM: "offscreen"
-      JAVA_OPTS: "-Xmx2048m -Xms512m"
-      CHROME_BIN: "/usr/bin/chromium-browser"
-      maxParallelForks: "8"
-    
-    # Volúmenes
-    volumes:
-      # Montar reporte generado en el host
-      - ./target/reports:/app/target/reports
-      - ./target/site:/app/target/site
-      - ./logs:/app/logs
-    
-    # Recursos
-    resources:
-      limits:
-        cpus: '2'
-        memory: 4G
-      reservations:
-        cpus: '1'
-        memory: 2G
-    
-    # Restarts
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
-    
-    # Logs
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    
-    # Comando
-    command: ./batch_test_8p.sh
+    container_name: sara3-tests
 
-  # ============================================================
-  # SARA3 - Menú Interactivo (para desarrollo)
-  # ============================================================
-  sara3-interactive:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: sara3:latest
-    container_name: sara3-interactive
-    
     environment:
-      DISPLAY: ""
-      QT_QPA_PLATFORM: "offscreen"
+      # Número de runners en paralelo. Vacío = el contenedor decide
+      # (menú si hay terminal, 8 por defecto si no la hay).
+      RUNNERS: "${RUNNERS:-}"
       JAVA_OPTS: "-Xmx2048m -Xms512m"
-      CHROME_BIN: "/usr/bin/chromium-browser"
-    
+      CHROME_BIN: "/usr/bin/google-chrome"
+      QT_QPA_PLATFORM: "offscreen"
+
+    # Reportes y logs persistidos en el host
     volumes:
-      - ./target/reports:/app/target/reports
-      - ./target/site:/app/target/site
+      - ./target:/app/target
       - ./logs:/app/logs
-    
-    resources:
-      limits:
-        cpus: '2'
-        memory: 4G
-      reservations:
-        cpus: '1'
-        memory: 2G
-    
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    
-    # Menú interactivo
+
+    # Permite el menú interactivo con 'docker compose run'
     stdin_open: true
     tty: true
-    command: ./run_tests.sh
 
-  # ============================================================
-  # SARA3 - Test Individual (para debugging)
-  # ============================================================
-  sara3-single:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: sara3:latest
-    container_name: sara3-single-test
-    
-    environment:
-      DISPLAY: ""
-      QT_QPA_PLATFORM: "offscreen"
-      JAVA_OPTS: "-Xmx2048m -Xms512m"
-      CHROME_BIN: "/usr/bin/chromium-browser"
-      TEST_NUM: "01"  # Cambiar número de test
-    
-    volumes:
-      - ./target/reports:/app/target/reports
-      - ./target/site:/app/target/site
-      - ./logs:/app/logs
-    
-    resources:
-      limits:
-        cpus: '1'
-        memory: 2G
-      reservations:
-        cpus: '0.5'
-        memory: 1G
-    
+    # Límites de recursos (SÍ se aplican en docker compose v2)
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+
+    restart: "no"
+
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    
-    # Ejecutar test individual
-    command: bash -c "./gradlew test --tests 'com.sara.automation.runners.CasesRunner$${TEST_NUM}'"
 
 networks:
   default:
     name: sara3-network
     driver: bridge
-
-# Volúmenes nombrados para reportes
-volumes:
-  sara3-reports:
-    driver: local
-  sara3-logs:
-    driver: local
