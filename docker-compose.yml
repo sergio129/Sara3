@@ -43,15 +43,14 @@ services:
     stdin_open: true
     tty: true
 
-    # Límites de recursos (SÍ se aplican en docker compose v2)
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 8G
-        reservations:
-          cpus: "2"
-          memory: 4G
+    # Límites de recursos: DESACTIVADOS por defecto para no depender del hardware
+    # del servidor (este tiene 2 CPUs). Si quieres limitar, descomenta y ajusta
+    # 'cpus'/'memory' a valores <= a los del servidor:
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "2"
+    #       memory: 4G
 
     restart: "no"
 
