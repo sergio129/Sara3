@@ -1,35 +1,39 @@
 # ============================================================
 # SARA3 - DOCKER IMAGE PARA TESTS HEADLESS
 # ------------------------------------------------------------
-# SIN apt-get: el servidor no alcanza los repos de Ubuntu (puerto 80).
-# Todo se obtiene de imágenes ya construidas (que sí se pueden bajar):
-#   - selenium/standalone-chrome : Chrome + chromedriver + Xvfb + X11 + dbus
-#   - eclipse-temurin            : JDK 11
-#   - mcr.microsoft.com/powershell : pwsh (para el reporte CSV/Excel/HTML)
+# Red del servidor: alcanza Docker Hub + Maven Central, pero NO services.gradle.org
+# (el gradlew falla al bajar el binario de Gradle) ni los repos apt de Ubuntu.
+#
+# Estrategia (todo de fuentes alcanzables, sin apt y sin services.gradle.org):
+#   - selenium/standalone-chrome  : Chrome + chromedriver + Xvfb + X11 + dbus
+#   - eclipse-temurin             : JDK 11
+#   - gradle:8.10.2-jdk11         : binario de Gradle (desde Docker Hub, NO gradle.org)
+#   - mcr.microsoft.com/powershell: pwsh (reporte CSV/Excel/HTML)
+#   - dependencias del proyecto   : desde Maven Central (alcanzable)
 # ============================================================
 
-# STAGE 1: JDK (solo para copiar el JDK al runtime, sin apt)
+# STAGE 1: JDK 11 (para copiar al runtime)
 FROM eclipse-temurin:11-jdk-jammy AS jdk-source
 
-# STAGE 2: Builder - DESCARGA Gradle + todas las dependencias y compila.
-# Requiere internet SOLO en build-time. El resultado queda en /root/.gradle y
-# se copia al runtime para que el SERVIDOR no tenga que descargar nada.
-FROM eclipse-temurin:11-jdk-jammy AS builder
-WORKDIR /app
-ENV GRADLE_USER_HOME=/root/.gradle
-COPY . .
-# Normalizar a LF y compilar tests: baja la distribución de Gradle + dependencias.
-# (Sin '|| true': si aquí no hay internet, el build falla claramente; hay que
-#  construir en una máquina/red con acceso a services.gradle.org y Maven Central.)
-RUN sed -i 's/\r$//' gradlew *.sh 2>/dev/null || true; \
-    chmod +x gradlew *.sh && \
-    ./gradlew --no-daemon compileTestJava
+# STAGE 2: Distribución de Gradle (binario desde Docker Hub, sin services.gradle.org)
+FROM gradle:8.10.2-jdk11 AS gradle-dist
 
-# STAGE 3: PowerShell (para generar el reporte CSV/Excel/HTML, sin apt)
+# STAGE 3: Builder - usa el gradle del sistema (NO el wrapper) para no tocar
+# services.gradle.org. Las dependencias se bajan de Maven Central (alcanzable).
+FROM gradle:8.10.2-jdk11 AS builder
+USER root
+WORKDIR /app
+ENV GRADLE_USER_HOME=/gradle-home
+COPY . .
+RUN sed -i 's/\r$//' gradlew *.sh 2>/dev/null || true; \
+    chmod +x gradlew *.sh; \
+    gradle --no-daemon compileTestJava
+
+# STAGE 4: PowerShell (para el reporte CSV/Excel/HTML, sin apt)
 FROM mcr.microsoft.com/powershell:latest AS pwsh-source
 
 # ============================================================
-# STAGE 4: Runtime - selenium ya trae Chrome + chromedriver + Xvfb + X11 + dbus
+# STAGE 5: Runtime - selenium trae Chrome + chromedriver + Xvfb + X11 + dbus
 # ============================================================
 FROM selenium/standalone-chrome:latest
 
@@ -39,30 +43,33 @@ WORKDIR /app
 # --- JDK 11 (copiado, sin apt) ---
 COPY --from=jdk-source /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# --- PowerShell (copiado, sin apt) ---
-# Modo "globalization invariant" para no depender de libicu (no instalable por apt aquí).
+# --- Gradle (binario copiado desde Docker Hub, sin services.gradle.org) ---
+COPY --from=gradle-dist /opt/gradle-8.10.2 /opt/gradle-8.10.2
+ENV PATH="/opt/gradle-8.10.2/bin:${JAVA_HOME}/bin:${PATH}"
+
+# --- PowerShell (copiado, sin apt). Invariant para no depender de libicu ---
 COPY --from=pwsh-source /opt/microsoft/powershell /opt/microsoft/powershell
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 RUN PWSH_BIN="$(find /opt/microsoft/powershell -maxdepth 2 -name pwsh -type f | head -1)" && \
     ln -sf "$PWSH_BIN" /usr/bin/pwsh && \
     (pwsh --version || echo "AVISO: pwsh no inició; el reporte CSV/Excel quedaría degradado")
 
-# --- App + caché de Gradle (desde el builder) ---
-# /root/.gradle trae la distribución de Gradle y TODAS las dependencias ya
-# descargadas, para que el server NO necesite internet a Gradle/Maven en runtime.
+# --- App + caché de Gradle (dependencias ya descargadas en build) ---
 COPY --from=builder /app /app
-COPY --from=builder /root/.gradle /root/.gradle
-ENV GRADLE_USER_HOME=/root/.gradle
+COPY --from=builder /gradle-home /gradle-home
+ENV GRADLE_USER_HOME=/gradle-home
+
+# --- Shim: ./gradlew -> gradle del sistema (evita services.gradle.org en runtime) ---
+RUN printf '#!/bin/bash\nexec gradle "$@"\n' > /app/gradlew && chmod +x /app/gradlew
 
 # --- Scripts de entrada y menú ---
 COPY docker-entrypoint.sh /usr/local/bin/
 COPY docker-menu.sh /app/
 
-# Normalizar a LF con sed (sin dos2unix) + permisos + carpetas de salida
+# Normalizar a LF (sin dos2unix) + permisos + carpetas de salida
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh /app/*.sh 2>/dev/null || true; \
-    chmod +x /usr/local/bin/docker-entrypoint.sh /app/*.sh gradlew && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh /app/*.sh && \
     mkdir -p logs target/reports target/site
 
 # Variables de entorno
