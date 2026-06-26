@@ -16,7 +16,10 @@
 FROM eclipse-temurin:11-jdk-jammy AS jdk-source
 
 # STAGE 2: Distribución de Gradle (binario desde Docker Hub, sin services.gradle.org)
+# Aplana GRADLE_HOME a una ruta fija (resuelve symlinks) para copiarlo sin depender
+# del layout exacto de la imagen.
 FROM gradle:8.10.2-jdk11 AS gradle-dist
+RUN cp -rL "$GRADLE_HOME" /opt/gradle-flat && /opt/gradle-flat/bin/gradle --version
 
 # STAGE 3: Builder - usa el gradle del sistema (NO el wrapper) para no tocar
 # services.gradle.org. Las dependencias se bajan de Maven Central (alcanzable).
@@ -45,8 +48,8 @@ COPY --from=jdk-source /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
 
 # --- Gradle (binario copiado desde Docker Hub, sin services.gradle.org) ---
-COPY --from=gradle-dist /opt/gradle-8.10.2 /opt/gradle-8.10.2
-ENV PATH="/opt/gradle-8.10.2/bin:${JAVA_HOME}/bin:${PATH}"
+COPY --from=gradle-dist /opt/gradle-flat /opt/gradle
+ENV PATH="/opt/gradle/bin:${JAVA_HOME}/bin:${PATH}"
 
 # --- PowerShell (copiado, sin apt). Invariant para no depender de libicu ---
 COPY --from=pwsh-source /opt/microsoft/powershell /opt/microsoft/powershell
